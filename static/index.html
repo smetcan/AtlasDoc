@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AtlasDoc — Vision-First PDF to Markdown</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <!-- Marked.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Mermaid.js CDN (Akış şeması ve diyagram önizlemesi için) -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#151f32',
+              925: '#0b1120',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .prose pre {
+      background-color: #090d16 !important;
+      border: 1px solid #1e293b;
+    }
+    .prose table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+    }
+    .prose th, .prose td {
+      border: 1px solid #334155;
+      padding: 0.5rem 0.75rem;
+    }
+    .prose th {
+      background-color: #1e293b;
+    }
+  </style>
+</head>
+<body class="bg-slate-925 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- ÜST BAR (Ayarlar & Bağlantı Testi) -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <!-- Logo & Başlık -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold tracking-tight text-white">AtlasDoc</h1>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Vision-First PDF to Markdown</span>
+          </div>
+          <p class="text-xs text-slate-400">PyMuPDF (In-Memory) + Sliding Window + LM Studio Vision</p>
+        </div>
+      </div>
+
+      <!-- Ayar Kutucukları & Health Check -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Base URL -->
+        <div class="flex flex-col">
+          <label for="baseUrlInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">LM Studio API URL</label>
+          <input
+            id="baseUrlInput"
+            type="text"
+            value="http://localhost:1234/v1"
+            class="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-52 font-mono"
+            placeholder="http://localhost:1234/v1"
+          />
+        </div>
+
+        <!-- Model Adı -->
+        <div class="flex flex-col">
+          <label for="modelNameInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Vision Model</label>
+          <input
+            id="modelNameInput"
+            type="text"
+            value="google/gemma-4-e4b"
+            class="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-48 font-mono"
+            placeholder="google/gemma-4-e4b"
+          />
+        </div>
+
+        <!-- DPI -->
+        <div class="flex flex-col">
+          <label for="dpiInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">DPI</label>
+          <input
+            id="dpiInput"
+            type="number"
+            min="72"
+            max="400"
+            step="10"
+            value="200"
+            class="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-20 font-mono text-center"
+          />
+        </div>
+
+        <!-- Bağlantı Test Butonu -->
+        <div class="flex flex-col justify-end pt-3.5">
+          <button
+            id="healthCheckBtn"
+            type="button"
+            class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+          >
+            <span id="healthDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>Bağlantı Testi</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bağlantı Durum Bildirimi Barı -->
+    <div id="healthBanner" class="hidden border-t border-slate-800/80 px-4 py-1.5 text-xs">
+      <div class="max-w-[1600px] mx-auto flex items-center justify-between">
+        <span id="healthMessage"></span>
+        <button onclick="document.getElementById('healthBanner').classList.add('hidden')" class="text-slate-400 hover:text-white ml-4">✕</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ANA EKRAN (SPLIT VIEW) -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
+
+    <!-- SOL PANEL: PDF Yükleme, Sayfa Seçimi, İlerleme & Küçük Görsel Önizleme (4 Sütun) -->
+    <section class="lg:col-span-4 flex flex-col gap-4">
+
+      <!-- Sürükle-Bırak PDF Yükleme & Sayfa Seçimi Kartı -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">1. PDF Dokümanı &amp; Sayfa Seçimi</h2>
+          <span id="pdfTotalPagesBadge" class="hidden text-[11px] font-medium px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+            Toplam: - sayfa
+          </span>
+        </div>
+
+        <label
+          id="dropZone"
+          for="pdfFileInput"
+          class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-indigo-500/80 rounded-xl p-5 text-center cursor-pointer transition bg-slate-950/50 hover:bg-indigo-950/10"
+        >
+          <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" class="hidden" />
+          <div class="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <p id="selectedFileName" class="text-sm font-medium text-slate-200">PDF dosyasını sürükleyin veya tıklayın</p>
+          <p id="selectedFileSize" class="text-xs text-slate-500 mt-0.5">Bellekte (In-Memory) 200 DPI PNG olarak işlenir</p>
+        </label>
+
+        <!-- Sayfa ve Sayfa Aralığı Seçim Alanı -->
+        <div class="mt-3.5 pt-3.5 border-t border-slate-800/80">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-medium text-slate-300">İşlenecek Sayfalar</label>
+            <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-[11px]">
+              <button
+                id="modeAllPagesBtn"
+                type="button"
+                class="px-2.5 py-1 rounded-md font-medium bg-indigo-600 text-white transition cursor-pointer"
+              >
+                Tüm Sayfalar
+              </button>
+              <button
+                id="modeCustomPagesBtn"
+                type="button"
+                class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer"
+              >
+                Özel Aralık
+              </button>
+            </div>
+          </div>
+
+          <div id="customRangeContainer" class="hidden space-y-1.5 mt-2">
+            <div class="relative">
+              <input
+                id="pageRangesInput"
+                type="text"
+                placeholder="Örn: 1-5, 8, 11-14 veya 5-"
+                class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div class="flex items-center justify-between text-[11px]">
+              <span id="rangeHelperText" class="text-slate-400">Tek sayfa (`4`), aralık (`1-5`) veya açık uçlu (`10-`) yazabilirsiniz.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Başlat & Durdur Butonları -->
+        <div class="mt-4 flex items-center gap-2.5">
+          <button
+            id="startBtn"
+            disabled
+            class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white transition shadow-lg shadow-indigo-600/20 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="startBtnLabel">Dönüştürmeyi Başlat</span>
+          </button>
+
+          <button
+            id="stopBtn"
+            disabled
+            class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-rose-600/90 hover:bg-rose-600 disabled:bg-slate-800 disabled:text-slate-600 text-white transition cursor-pointer disabled:cursor-not-allowed"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Durdur</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- İlerleme Çubuğu (Progress) Kartı -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span id="progressStatusText" class="text-xs font-medium text-slate-300">Hazır — PDF bekleniyor</span>
+          <span id="progressPercentText" class="text-xs font-mono font-semibold text-indigo-400">0%</span>
+        </div>
+
+        <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+          <div
+            id="progressBar"
+            class="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-300"
+            style="width: 0%"
+          ></div>
+        </div>
+
+        <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+          <span id="slidingWindowBadge" class="inline-flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Sliding Window + Strikethrough Masking aktif
+          </span>
+          <span id="elapsedTimeText" class="font-mono">00:00</span>
+        </div>
+      </div>
+
+      <!-- O An İşlenen Sayfanın Küçük Görsel Önizlemesi -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex-1 flex flex-col min-h-[260px]">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Aktif Sayfa Görseli (In-Memory)</h2>
+          <span id="currentPageBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">- / -</span>
+        </div>
+
+        <div class="flex-1 bg-slate-950 border border-slate-800/80 rounded-xl flex items-center justify-center overflow-hidden relative p-2">
+          <div id="previewPlaceholder" class="text-center p-6 text-slate-500 text-xs">
+            <svg class="w-10 h-10 mx-auto mb-2 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            İşlem başladığında o anki sayfanın 200 DPI PNG görüntüsü burada belirecek.
+          </div>
+          <img
+            id="currentPageImage"
+            src=""
+            alt="İşlenen Sayfa Önizlemesi"
+            class="hidden max-h-[340px] w-auto object-contain rounded shadow-md transition-opacity duration-200"
+          />
+          <!-- İşleniyor animasyon katmanı -->
+          <div id="imageScanningOverlay" class="hidden absolute inset-0 bg-indigo-950/20 backdrop-blur-[1px] flex items-end justify-center p-3">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-indigo-500/40 text-xs text-indigo-300 shadow">
+              <svg class="w-3.5 h-3.5 animate-spin text-indigo-400" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <span>Vision LLM sayfayı okuyor...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SAĞ PANEL: Canlı Markdown Çıktısı & Sekmeler (8 Sütun) -->
+    <section class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-sm min-h-[640px]">
+
+      <!-- Sekme Başlıkları & Aksiyon Butonları -->
+      <div class="border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 bg-slate-900/60">
+        <!-- Sekmeler: Raw Markdown & Live Preview -->
+        <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button
+            id="tabRawBtn"
+            type="button"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow cursor-pointer"
+          >
+            Raw Markdown
+          </button>
+          <button
+            id="tabPreviewBtn"
+            type="button"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 cursor-pointer"
+          >
+            Live Preview
+          </button>
+        </div>
+
+        <!-- Sağ Üst/Alt Aksiyonlar: Sayfa Ayırıcı Checkbox, Copy All, Download .md -->
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 mr-2 cursor-pointer select-none">
+            <input id="pageSeparatorToggle" type="checkbox" class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+            <span>Sayfa ayırıcıları ekle (`---`)</span>
+          </label>
+
+          <button
+            id="copyAllBtn"
+            disabled
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 border border-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span id="copyBtnText">Copy All</span>
+          </button>
+
+          <button
+            id="downloadMdBtn"
+            disabled
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition shadow-sm cursor-pointer disabled:cursor-not-allowed"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Download .md</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- İçerik Gövdesi -->
+      <div class="flex-1 relative overflow-hidden flex flex-col">
+        <!-- SEKMELER 1: Raw Markdown -->
+        <div id="rawPanel" class="flex-1 flex flex-col h-full">
+          <textarea
+            id="rawMarkdownOutput"
+            readonly
+            placeholder="Sayfalar işlendikçe temizlenmiş saf Markdown çıktısı burada gerçek zamanlı olarak akacak..."
+            class="w-full flex-1 bg-slate-950 text-slate-200 font-mono text-xs leading-relaxed p-5 focus:outline-none resize-none overflow-y-auto"
+          ></textarea>
+        </div>
+
+        <!-- SEKMELER 2: Live Preview -->
+        <div
+          id="previewPanel"
+          class="hidden flex-1 bg-slate-950 p-6 overflow-y-auto prose prose-invert prose-slate max-w-none prose-headings:text-slate-100 prose-a:text-indigo-400 prose-code:text-amber-300"
+        >
+          <p class="text-slate-500 text-sm italic">Henüz görüntülenecek Markdown çıktısı yok.</p>
+        </div>
+      </div>
+
+      <!-- Alt Durum Barı -->
+      <div class="border-t border-slate-800 bg-slate-900/90 px-4 py-2 flex items-center justify-between text-xs text-slate-400">
+        <div class="flex items-center gap-4">
+          <span id="completedPagesCount">Tamamlanan Sayfa: 0</span>
+          <span id="charCountText">Karakter: 0</span>
+        </div>
+        <div class="text-[11px] text-slate-500">
+          AtlasDoc v1.1 | Temperature: <code class="text-slate-300">0.1</code> | Post-Processing: <code class="text-slate-300">Vector Masking &amp; Clean MD</code>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+
+    // DOM Referansları
+    const baseUrlInput = document.getElementById('baseUrlInput');
+    const modelNameInput = document.getElementById('modelNameInput');
+    const dpiInput = document.getElementById('dpiInput');
+    const healthCheckBtn = document.getElementById('healthCheckBtn');
+    const healthDot = document.getElementById('healthDot');
+    const healthBanner = document.getElementById('healthBanner');
+    const healthMessage = document.getElementById('healthMessage');
+
+    const dropZone = document.getElementById('dropZone');
+    const pdfFileInput = document.getElementById('pdfFileInput');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const selectedFileSize = document.getElementById('selectedFileSize');
+    const pdfTotalPagesBadge = document.getElementById('pdfTotalPagesBadge');
+
+    const modeAllPagesBtn = document.getElementById('modeAllPagesBtn');
+    const modeCustomPagesBtn = document.getElementById('modeCustomPagesBtn');
+    const customRangeContainer = document.getElementById('customRangeContainer');
+    const pageRangesInput = document.getElementById('pageRangesInput');
+    const rangeHelperText = document.getElementById('rangeHelperText');
+
+    const startBtn = document.getElementById('startBtn');
+    const startBtnLabel = document.getElementById('startBtnLabel');
+    const stopBtn = document.getElementById('stopBtn');
+
+    const progressStatusText = document.getElementById('progressStatusText');
+    const progressPercentText = document.getElementById('progressPercentText');
+    const progressBar = document.getElementById('progressBar');
+    const elapsedTimeText = document.getElementById('elapsedTimeText');
+
+    const currentPageBadge = document.getElementById('currentPageBadge');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+    const currentPageImage = document.getElementById('currentPageImage');
+    const imageScanningOverlay = document.getElementById('imageScanningOverlay');
+
+    const tabRawBtn = document.getElementById('tabRawBtn');
+    const tabPreviewBtn = document.getElementById('tabPreviewBtn');
+    const rawPanel = document.getElementById('rawPanel');
+    const previewPanel = document.getElementById('previewPanel');
+    const rawMarkdownOutput = document.getElementById('rawMarkdownOutput');
+    const pageSeparatorToggle = document.getElementById('pageSeparatorToggle');
+
+    const copyAllBtn = document.getElementById('copyAllBtn');
+    const copyBtnText = document.getElementById('copyBtnText');
+    const downloadMdBtn = document.getElementById('downloadMdBtn');
+    const completedPagesCount = document.getElementById('completedPagesCount');
+    const charCountText = document.getElementById('charCountText');
+
+    // Uygulama Durumu (State)
+    let selectedFile = null;
+    let pdfTotalPages = 0;
+    let pageMode = 'all'; // 'all' | 'custom'
+    let abortController = null;
+    let pageResults = [];
+    let timerInterval = null;
+    let startTime = null;
+    let activeTab = 'raw';
+
+    // 1. Sayfa Seçim Modu (Tüm Sayfalar / Özel Aralık)
+    function setPageMode(mode) {
+      pageMode = mode;
+      if (mode === 'all') {
+        modeAllPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium bg-indigo-600 text-white transition cursor-pointer';
+        modeCustomPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer';
+        customRangeContainer.classList.add('hidden');
+      } else {
+        modeCustomPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium bg-indigo-600 text-white transition cursor-pointer';
+        modeAllPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer';
+        customRangeContainer.classList.remove('hidden');
+        pageRangesInput.focus();
+      }
+      updateRangePreview();
+    }
+
+    modeAllPagesBtn.addEventListener('click', () => setPageMode('all'));
+    modeCustomPagesBtn.addEventListener('click', () => setPageMode('custom'));
+    pageRangesInput.addEventListener('input', updateRangePreview);
+
+    function parseClientSideRanges(str, maxPages) {
+      if (!str || !str.trim()) return { valid: true, pages: [] };
+      const limit = maxPages > 0 ? maxPages : 9999;
+      const pages = new Set();
+      const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+
+      for (const part of parts) {
+        if (part.includes('-')) {
+          const [s, e] = part.split('-', 2).map(x => x.trim());
+          if ((s && !/^\d+$/.test(s)) || (e && !/^\d+$/.test(e))) {
+            return { valid: false, error: `Geçersiz aralık: "${part}"` };
+          }
+          let start = s ? parseInt(s, 10) : 1;
+          let end = e ? parseInt(e, 10) : limit;
+          if (start > end) [start, end] = [end, start];
+          start = Math.max(1, Math.min(limit, start));
+          end = Math.max(1, Math.min(limit, end));
+          for (let i = start; i <= end; i++) pages.add(i);
+        } else {
+          if (!/^\d+$/.test(part)) {
+            return { valid: false, error: `Geçersiz sayfa numarası: "${part}"` };
+          }
+          const num = parseInt(part, 10);
+          if (num >= 1 && num <= limit) pages.add(num);
+        }
+      }
+      const sorted = Array.from(pages).sort((a, b) => a - b);
+      if (sorted.length === 0) {
+        return { valid: false, error: maxPages ? `1-${maxPages} aralığında sayfa bulunamadı.` : 'Geçerli sayfa seçilmedi.' };
+      }
+      return { valid: true, pages: sorted };
+    }
+
+    function updateRangePreview() {
+      if (pageMode === 'all') {
+        startBtnLabel.textContent = pdfTotalPages > 0
+          ? `Dönüştürmeyi Başlat (${pdfTotalPages} Sayfa)`
+          : 'Dönüştürmeyi Başlat';
+        if (selectedFile) startBtn.disabled = false;
+        return;
+      }
+
+      const raw = pageRangesInput.value.trim();
+      if (!raw) {
+        rangeHelperText.className = 'text-slate-400';
+        rangeHelperText.textContent = 'Boş bırakılırsa tüm sayfalar işlenir. Örn: 1-5, 8, 12-15';
+        startBtnLabel.textContent = pdfTotalPages > 0
+          ? `Dönüştürmeyi Başlat (${pdfTotalPages} Sayfa)`
+          : 'Dönüştürmeyi Başlat';
+        if (selectedFile) startBtn.disabled = false;
+        return;
+      }
+
+      const parsed = parseClientSideRanges(raw, pdfTotalPages);
+      if (!parsed.valid) {
+        rangeHelperText.className = 'text-rose-400 font-medium';
+        rangeHelperText.textContent = parsed.error;
+        startBtn.disabled = true;
+      } else {
+        const count = parsed.pages.length;
+        const previewList = parsed.pages.length <= 8
+          ? parsed.pages.join(', ')
+          : `${parsed.pages.slice(0, 6).join(', ')} ... ${parsed.pages[parsed.pages.length - 1]}`;
+        rangeHelperText.className = 'text-emerald-400 font-medium';
+        rangeHelperText.textContent = `Seçilen (${count} sayfa): [${previewList}]`;
+        startBtnLabel.textContent = `Seçili ${count} Sayfayı Dönüştür`;
+        if (selectedFile) startBtn.disabled = false;
+      }
+    }
+
+    // 2. Sekme Geçişleri
+    function switchTab(tab) {
+      activeTab = tab;
+      if (tab === 'raw') {
+        tabRawBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow cursor-pointer';
+        tabPreviewBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 cursor-pointer';
+        rawPanel.classList.remove('hidden');
+        previewPanel.classList.add('hidden');
+      } else {
+        tabPreviewBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow cursor-pointer';
+        tabRawBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 cursor-pointer';
+        previewPanel.classList.remove('hidden');
+        rawPanel.classList.add('hidden');
+        renderLivePreview();
+      }
+    }
+
+    tabRawBtn.addEventListener('click', () => switchTab('raw'));
+    tabPreviewBtn.addEventListener('click', () => switchTab('preview'));
+    pageSeparatorToggle.addEventListener('change', updateCombinedMarkdownUI);
+
+    // 3. Birleştirilmiş Markdown Metnini Üret ve Güncelle
+    function getCombinedMarkdown() {
+      if (pageResults.length === 0) return '';
+      const useSep = pageSeparatorToggle.checked;
+      return pageResults
+        .map(p => useSep ? `<!-- Sayfa ${p.page} -->\n${p.markdown}` : p.markdown)
+        .filter(Boolean)
+        .join(useSep ? '\n\n---\n\n' : '\n\n');
+    }
+
+    function updateCombinedMarkdownUI() {
+      const combined = getCombinedMarkdown();
+      rawMarkdownOutput.value = combined;
+      rawMarkdownOutput.scrollTop = rawMarkdownOutput.scrollHeight;
+
+      completedPagesCount.textContent = `Tamamlanan Sayfa: ${pageResults.length}`;
+      charCountText.textContent = `Karakter: ${combined.length.toLocaleString('tr-TR')}`;
+
+      const hasContent = combined.trim().length > 0;
+      copyAllBtn.disabled = !hasContent;
+      downloadMdBtn.disabled = !hasContent;
+
+      if (activeTab === 'preview') {
+        renderLivePreview();
+      }
+    }
+
+    async function renderLivePreview() {
+      const combined = getCombinedMarkdown();
+      if (!combined.trim()) {
+        previewPanel.innerHTML = '<p class="text-slate-500 text-sm italic">Henüz görüntülenecek Markdown çıktısı yok.</p>';
+        return;
+      }
+
+      const htmlContent = marked.parse(combined, { gfm: true, breaks: true });
+      previewPanel.innerHTML = htmlContent;
+
+      const mermaidBlocks = previewPanel.querySelectorAll('pre code.language-mermaid');
+      mermaidBlocks.forEach((block) => {
+        const pre = block.parentElement;
+        const container = document.createElement('div');
+        container.className = 'mermaid my-4 flex justify-center bg-slate-900/80 p-4 rounded-xl border border-slate-800';
+        container.textContent = block.textContent;
+        pre.replaceWith(container);
+      });
+
+      if (mermaidBlocks.length > 0) {
+        try {
+          await mermaid.run({ nodes: previewPanel.querySelectorAll('.mermaid') });
+        } catch (err) {
+          console.warn('Mermaid render uyarısı:', err);
+        }
+      }
+      previewPanel.scrollTop = previewPanel.scrollHeight;
+    }
+
+    // 4. LM Studio Bağlantı Testi (Health Check)
+    async function runHealthCheck() {
+      healthDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+      healthCheckBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/health', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base_url: baseUrlInput.value,
+            model_name: modelNameInput.value
+          })
+        });
+        const data = await res.json();
+
+        healthBanner.classList.remove('hidden');
+        if (data.ok && data.model_found) {
+          healthDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          healthBanner.className = 'border-t border-emerald-500/30 bg-emerald-950/40 text-emerald-300 px-4 py-1.5 text-xs';
+        } else if (data.ok) {
+          healthDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+          healthBanner.className = 'border-t border-amber-500/30 bg-amber-950/40 text-amber-300 px-4 py-1.5 text-xs';
+        } else {
+          healthDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+          healthBanner.className = 'border-t border-rose-500/30 bg-rose-950/40 text-rose-300 px-4 py-1.5 text-xs';
+        }
+        healthMessage.textContent = data.message;
+      } catch (err) {
+        healthDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        healthBanner.classList.remove('hidden');
+        healthBanner.className = 'border-t border-rose-500/30 bg-rose-950/40 text-rose-300 px-4 py-1.5 text-xs';
+        healthMessage.textContent = 'Sunucuya ulaşılamadı: ' + err.message;
+      } finally {
+        healthCheckBtn.disabled = false;
+      }
+    }
+
+    healthCheckBtn.addEventListener('click', runHealthCheck);
+
+    // 5. Dosya Seçimi & PDF Sayfa Sayısını Bellekte Okuma
+    async function handleFileSelect(file) {
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Lütfen geçerli bir PDF dosyası seçin.');
+        return;
+      }
+      selectedFile = file;
+      pdfTotalPages = 0;
+      selectedFileName.textContent = file.name;
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      selectedFileSize.textContent = `${sizeMB} MB — Sayfa sayısı okunuyor...`;
+      startBtn.disabled = false;
+
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/pdf-info', { method: 'POST', body: fd });
+        if (res.ok) {
+          const info = await res.json();
+          pdfTotalPages = info.total_pages || 0;
+          pdfTotalPagesBadge.textContent = `Toplam: ${pdfTotalPages} sayfa`;
+          pdfTotalPagesBadge.classList.remove('hidden');
+          selectedFileSize.textContent = `${sizeMB} MB • Toplam ${pdfTotalPages} sayfa`;
+          pageRangesInput.placeholder = `Örn: 1-${Math.min(5, pdfTotalPages)}, ${Math.min(8, pdfTotalPages)} (Toplam ${pdfTotalPages} syf)`;
+        } else {
+          selectedFileSize.textContent = `${sizeMB} MB — Dönüştürmeye hazır`;
+        }
+      } catch (_) {
+        selectedFileSize.textContent = `${sizeMB} MB — Dönüştürmeye hazır`;
+      }
+
+      updateRangePreview();
+    }
+
+    pdfFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-indigo-500', 'bg-indigo-950/20');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    // 6. Süre Sayacı
+    function startTimer() {
+      startTime = Date.now();
+      elapsedTimeText.textContent = '00:00';
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const diffSec = Math.floor((Date.now() - startTime) / 1000);
+        const mins = String(Math.floor(diffSec / 60)).padStart(2, '0');
+        const secs = String(diffSec % 60).padStart(2, '0');
+        elapsedTimeText.textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // 7. SSE Akışı ile PDF Dönüştürme İşlemi
+    async function startConversion() {
+      if (!selectedFile) return;
+
+      pageResults = [];
+      updateCombinedMarkdownUI();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      progressBar.style.width = '0%';
+      progressPercentText.textContent = '0%';
+      progressStatusText.textContent = 'PDF belleğe yükleniyor...';
+      startTimer();
+
+      abortController = new AbortController();
+
+      const effectiveRanges = pageMode === 'custom' ? pageRangesInput.value.trim() : '';
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('base_url', baseUrlInput.value.trim());
+      formData.append('model_name', modelNameInput.value.trim());
+      formData.append('dpi', dpiInput.value || '200');
+      formData.append('page_ranges', effectiveRanges);
+
+      try {
+        const response = await fetch('/api/convert', {
+          method: 'POST',
+          body: formData,
+          signal: abortController.signal
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || `HTTP ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data:')) continue;
+            const jsonStr = line.replace(/^data:\s*/, '');
+            try {
+              const event = JSON.parse(jsonStr);
+              handleSseEvent(event);
+            } catch (parseErr) {
+              console.error('SSE JSON parse hatası:', parseErr);
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          progressStatusText.textContent = 'İşlem kullanıcı tarafından durduruldu.';
+        } else {
+          progressStatusText.textContent = `Hata: ${err.message}`;
+        }
+      } finally {
+        stopTimer();
+        updateRangePreview();
+        stopBtn.disabled = true;
+        imageScanningOverlay.classList.add('hidden');
+        abortController = null;
+      }
+    }
+
+    function handleSseEvent(event) {
+      switch (event.type) {
+        case 'init': {
+          progressStatusText.textContent = `Seçilen ${event.total_pages} sayfa işleniyor (${event.dpi} DPI)...`;
+          currentPageBadge.textContent = `0 / ${event.total_pages}`;
+          break;
+        }
+        case 'page_start': {
+          const { page, step, total_pages, image_base64 } = event;
+          const currentStep = step || page;
+          progressStatusText.textContent = `PDF Sayfa ${page} işleniyor (${currentStep} / ${total_pages})...`;
+          currentPageBadge.textContent = `Sayfa ${page} (${currentStep}/${total_pages})`;
+
+          const pct = Math.round(((currentStep - 1) / total_pages) * 100);
+          progressBar.style.width = `${pct}%`;
+          progressPercentText.textContent = `${pct}%`;
+
+          previewPlaceholder.classList.add('hidden');
+          currentPageImage.src = `data:image/png;base64,${image_base64}`;
+          currentPageImage.classList.remove('hidden');
+          imageScanningOverlay.classList.remove('hidden');
+          break;
+        }
+        case 'page_done': {
+          const { page, step, total_pages, markdown } = event;
+          const currentStep = step || page;
+          pageResults.push({ page, markdown });
+          updateCombinedMarkdownUI();
+
+          const pct = Math.round((currentStep / total_pages) * 100);
+          progressBar.style.width = `${pct}%`;
+          progressPercentText.textContent = `${pct}%`;
+          imageScanningOverlay.classList.add('hidden');
+          break;
+        }
+        case 'page_error': {
+          progressStatusText.textContent = event.message;
+          imageScanningOverlay.classList.add('hidden');
+          break;
+        }
+        case 'complete': {
+          progressBar.style.width = '100%';
+          progressPercentText.textContent = '100%';
+          progressStatusText.textContent = `Tamamlandı! (${event.total_pages} sayfa başarıyla dönüştürüldü)`;
+          imageScanningOverlay.classList.add('hidden');
+          break;
+        }
+        case 'error': {
+          progressStatusText.textContent = `Hata: ${event.message}`;
+          imageScanningOverlay.classList.add('hidden');
+          break;
+        }
+      }
+    }
+
+    startBtn.addEventListener('click', startConversion);
+    stopBtn.addEventListener('click', () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    });
+
+    // 8. Panoya Kopyala (Copy All) & .md İndir (Download .md)
+    copyAllBtn.addEventListener('click', async () => {
+      const text = getCombinedMarkdown();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      const original = copyBtnText.textContent;
+      copyBtnText.textContent = 'Kopyalandı!';
+      setTimeout(() => {
+        copyBtnText.textContent = original;
+      }, 2000);
+    });
+
+    downloadMdBtn.addEventListener('click', () => {
+      const text = getCombinedMarkdown();
+      if (!text) return;
+      const baseName = selectedFile
+        ? selectedFile.name.replace(/\.pdf$/i, '')
+        : 'AtlasDoc';
+      const rangeSuffix = (pageMode === 'custom' && pageRangesInput.value.trim())
+        ? `_sayfa_${pageRangesInput.value.trim().replace(/[^0-9a-zA-Z-]+/g, '_')}`
+        : '';
+      const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${baseName}${rangeSuffix}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
