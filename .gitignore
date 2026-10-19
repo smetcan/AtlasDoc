@@ -9,3 +9,9 @@ env/
 .pytest_cache/
 .DS_Store
 Thumbs.db
+node_modules/
+frontend/node_modules/
+dist/
+build/
+*.egg-info/
+.eggs/

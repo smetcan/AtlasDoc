@@ -1,88 +1,135 @@
-# AtlasDoc — Vision-First PDF to Markdown
+# AtlasDoc
 
-Yerel çalışan (**LM Studio**, **Ollama**) veya bulut tabanlı (**Google Gemini**, **OpenAI**, **Anthropic**, **OpenRouter** vb.) Vision LLM modellerini ve **PyMuPDF** kütüphanesini kullanarak PDF dokümanlarını yüksek doğrulukla, revizyon/üstü çizili metinleri arındırarak saf **Markdown (`.md`)** formatına dönüştüren web uygulaması.
+[Türkçe](README.tr.md)
 
-## Özellikler
+AtlasDoc turns a PDF into Markdown by **looking at each page**. It renders the page, masks strikethrough text, and asks a vision model for Markdown. It is a local program you run yourself. There is no hosted service.
 
-- **Çoklu AI Vision Sağlayıcı Desteği:**
-  - **Yerel (Local):** LM Studio (`http://localhost:1234/v1`) ve Ollama (`http://localhost:11434/v1`).
-  - **Bulut (Cloud API):** Google Gemini, OpenAI, Anthropic, OpenRouter ve özel OpenAI-uyumlu uç noktalar.
-- **Model Profil Yönetimi:** Arayüzdeki **Modeller** paneli üzerinden birden fazla yerel veya bulut model profili tanımlanabilir, sunucudaki mevcut modeller tek tıkla listelenebilir (`Sunucudan Modelleri Listele`), bağlantı testi yapılabilir ve üst bardaki seçici ile profiller arasında anında geçiş yapılabilir. Profiller ve API anahtarları sunucuya kaydedilmez; yalnızca tarayıcının `localStorage` alanında saklanır.
-- **In-Memory PDF Render (`PyMuPDF`):** Dış bağımlılık (Poppler vb.) gerektirmeden sayfaları bellekte PNG formatına dönüştürür. Render ve üstü çizili maskeleme event loop dışında çalışır.
-- **Vektör Seviyesinde Üstü Çizili (Strikethrough) Temizliği:** PDF içindeki üstü çizili (silinmiş/iptal edilmiş) revizyon metinlerini görsel oluşturulmadan önce koordinat bazlı tespit edip beyazlatır; altı çizili (yeni eklenen) metinleri ve tabloları korur. Aynı ifade yürürlükteki metinde tekrar geçebileceği için LLM çıktısından ayrıca silinmez.
-- **Sliding Window (Bağlam Koruma):** Ardışık sayfa geçişlerinde cümle ve tablo bölünmelerini önlemek için bir önceki sayfanın son 15 satırını bağlam olarak aktarır.
-- **Esnek Sayfa & Aralık Seçimi:** Tüm sayfaları veya `1-5, 8, 12-15, 20-` gibi özel sayfa aralıklarını işleyebilir.
-- **Gerçek Zamanlı Akış (SSE):** Sayfa önizlemesi ve üretilen Markdown çıktısı Server-Sent Events (SSE) ile sayfa sayfa arayüze akar (`Raw Markdown` ve `marked` + `mermaid` destekli `Live Preview`). Önizleme DOMPurify ile sanitize edilir.
-- **Kesilen ve Başarısız Sayfalar:** Token sınırında kesilen sayfalar ve zaman aşımı / render hatası yaşayan sayfalar iş sonunda listelenir. Zaman aşımı tek sayfayı düşürür, işe devam edilir.
+Deterministic parsers read the PDF text layer. That is fast and exact when the text layer is good, and it misses what the page actually looks like: a strike through a sentence, a stamp, a form, a scan. AtlasDoc sends the page image to a vision model instead, so the model can follow the page. The cost is that the model can skip or invent text. Keep the model on your own machine and the page images stay there.
 
-## Model Sağlayıcı Kurulumu
+![AtlasDoc demo](docs/demo.gif)
 
-Üst bardaki **Modeller** butonuna tıklayarak **AI Vision Model Profilleri** penceresinden dilediğiniz sağlayıcıyı yapılandırabilirsiniz:
+*Demo GIF is not recorded yet. Save a recording as `docs/demo.gif` and this image will show it.*
 
-### 1. LM Studio (Yerel)
-1. [LM Studio](https://lmstudio.ai/) uygulamasını kurun ve görüntü destekli (vision) bir model indirin (örn. `google/gemma-4-e4b` veya `Qwen/Qwen3-VL-8B-Instruct`).
-2. **Local Server** sekmesinden sunucuyu başlatın (varsayılan: `http://localhost:1234/v1`).
-3. AtlasDoc **Modeller** penceresinde `LM Studio (Yerel)` profilini seçin, **Sunucudan Modelleri Listele** butonuna tıklayarak yüklü modeli seçin ve **Kaydet & Seç** deyin.
+## Quick start
 
-### 2. Ollama (Yerel)
-1. [Ollama](https://ollama.com/) uygulamasını kurun ve bir vision modeli çekin:
-   ```bash
-   ollama pull gemma3:4b
-   # veya
-   ollama pull qwen2.5vl:7b
-   ```
-2. AtlasDoc **Modeller** penceresinde `Ollama (Yerel)` sağlayıcısını seçin (varsayılan adres: `http://localhost:11434/v1`). **Sunucudan Modelleri Listele** ile modeli seçip kaydedin.
-
-### 3. Bulut API Sağlayıcıları (Gemini, OpenAI, Anthropic, OpenRouter)
-1. **Modeller** penceresinde **+ Yeni Ekle** butonuna tıklayın ve ilgili sağlayıcıyı seçin:
-   - **Google Gemini:** `https://generativelanguage.googleapis.com/v1beta/openai` (Örn: `gemini-2.5-flash`)
-   - **OpenAI:** `https://api.openai.com/v1` (Örn: `gpt-4o-mini`, `gpt-4o`)
-   - **Anthropic:** `https://api.anthropic.com/v1` (Örn: `claude-sonnet-4-20250514`)
-   - **OpenRouter:** `https://openrouter.ai/api/v1` (Örn: `google/gemini-2.5-flash`)
-2. **API Anahtarı** alanına sağlayıcıdan aldığınız anahtarı girin, **Test Et** ile doğrulayın ve **Kaydet & Seç** butonuna basın.
-
-## Kurulum ve Çalıştırma
+Python 3.11 or newer.
 
 ```bash
-pip install -r requirements.txt
-python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+pip install .
+atlasdoc serve
 ```
 
-Tarayıcıdan `http://127.0.0.1:8000` adresine giderek kullanabilirsiniz. Sunucu yalnızca loopback arayüzüne bağlanır.
+Open http://127.0.0.1:8000. The page does not load Tailwind, marked, DOMPurify, Mermaid, or fonts from the network. Those files are in the repo and served by the app. See [atlasdoc/static/vendor/NOTICE.md](atlasdoc/static/vendor/NOTICE.md).
 
-## Yapılandırma
+You still need a vision model. The usual one is LM Studio on the same computer.
 
-Arayüzden değişenler: Aktif model profili (sağlayıcı, API adresi, API anahtarı, model kimliği), DPI (sunucu 72–400 aralığına sıkıştırır) ve sayfa aralığı.
+### Docker
 
-Sunucu süreç ortam değişkenleri:
+```bash
+docker compose up --build
+```
 
-| Değişken | Varsayılan | Anlamı |
+Then open http://127.0.0.1:8000.
+
+The container cannot see LM Studio at `localhost`. `localhost` inside the container is the container. Compose sets:
+
+```text
+ATLASDOC_BASE_URL=http://host.docker.internal:1234/v1
+```
+
+and adds `host.docker.internal` (`extra_hosts: host-gateway`, which Linux needs). The web UI picks that up as the default LM Studio address.
+
+LM Studio must accept that connection. If it listens only on `127.0.0.1`, Docker Desktop on macOS and Windows often still reaches it through `host.docker.internal`. On Linux it often does not, because `host-gateway` is the host's bridge address, not its loopback. If the health check cannot connect, either bind LM Studio's server to all interfaces, or run AtlasDoc with host networking and point it back at loopback:
+
+```bash
+docker run --rm --network host -e ATLASDOC_BASE_URL=http://127.0.0.1:1234/v1 atlasdoc
+```
+
+`ATLASDOC_BASE_URL` is the LM Studio base URL. `LMSTUDIO_BASE_URL` is accepted as another name for the same setting. A value you type in the UI, or pass to `atlasdoc convert --base-url`, wins over the environment.
+
+`pip install -r requirements.txt` and `python -m uvicorn app:app --host 127.0.0.1 --port 8000` still start the app from a checkout.
+
+## LM Studio
+
+1. Install [LM Studio](https://lmstudio.ai/).
+2. Download a **vision** model (one that accepts images). The id shown in LM Studio is the id you must use. It often differs from the Hugging Face repo name.
+3. Start the local server. The OpenAI-compatible base URL is usually `http://localhost:1234/v1`.
+4. In AtlasDoc, open **Modeller**, choose the LM Studio profile, list models from the server, and save.
+
+The health check only asks LM Studio which models are loaded. Conversion sends page images to that server.
+
+The UI can also store profiles for Ollama and for other OpenAI-compatible endpoints, including cloud APIs. A cloud profile sends page images to that provider. The local profiles do not.
+
+## Models that tend to work
+
+These are suggestions, not a benchmark. This project has not scored them against each other, and there are no accuracy numbers here.
+
+- **`google/gemma-4-e4b`**, the default filled in by the app. The Hugging Face model is `google/gemma-4-E4B-it`. LM Studio builds often use a GGUF from `lmstudio-community`. It is a small vision model, which is why it is the default, not because it won a comparison in this repo.
+- **Qwen2.5-VL or Qwen3-VL, around 7B–8B**, if you want a document-oriented vision model and have the memory for it. Their ids in LM Studio vary. Higher DPI makes more image tokens. If a page fails or gets cut off, lower the DPI.
+- **Ollama tags** such as `gemma3` or `qwen2.5vl`, if you use the Ollama profile (`http://localhost:11434/v1`).
+
+Read the model id from LM Studio's server list. A name that is close, but not the loaded id, will fail the request.
+
+## Command line
+
+`atlasdoc convert` uses the same page pipeline as the web UI.
+
+```bash
+atlasdoc convert input.pdf -o out.md
+atlasdoc convert input.pdf -o out.md --pages 1-5,8,20- --dpi 150
+atlasdoc convert input.pdf -o out.md --page-separators
+```
+
+`--pages` uses the same syntax as the UI (`1-5, 8, 20-`). Output is UTF-8 Markdown. Progress is printed on stderr. If any page fails, the file still contains the pages that succeeded and the command exits with status 1.
+
+```bash
+atlasdoc serve
+atlasdoc serve --host 127.0.0.1 --port 8000
+```
+
+## Configuration
+
+| Variable | Default | Meaning |
 | --- | --- | --- |
-| `ATLASDOC_MAX_UPLOAD_MB` | `100` | PDF yükleme üst sınırı (MB). `1`'den küçük değerler `1` sayılır. Sınır hem `/api/pdf-info` hem `/api/convert` için geçerlidir. |
-| `ATLASDOC_TIMEOUT` | `120` | Bir sayfa isteğinin saniye cinsinden zaman aşımı. Süre dolan sayfa başarısız işaretlenir, sonraki sayfaya geçilir. |
-| `ATLASDOC_MAX_RETRIES` | `1` | OpenAI istemcisinin ek deneme sayısı. `0` tek deneme demektir. SDK varsayılanı `2`'dir; timeout ile çarpılınca bir sayfa çok uzun sürebilir. |
-| `ATLASDOC_MAX_TOKENS` | `8192` | Sayfa başına `max_tokens`. Yanıt `finish_reason=length` ile biterse sayfa kesilmiş olarak işaretlenir, metin yine de yazılır. |
+| `ATLASDOC_BASE_URL` | `http://localhost:1234/v1` | LM Studio (or other OpenAI-compatible) base URL. `LMSTUDIO_BASE_URL` is a fallback name. |
+| `ATLASDOC_MODEL` | `google/gemma-4-e4b` | Model id used when the UI has no saved profile, and by the CLI. |
+| `ATLASDOC_PROVIDER` | `lmstudio` | Provider id (`lmstudio`, `ollama`, or another id the UI knows). |
+| `ATLASDOC_API_KEY` | empty | API key for the CLI, when the provider needs one. |
+| `ATLASDOC_HOST` | `127.0.0.1` | Address `atlasdoc serve` binds. Docker sets `0.0.0.0`. |
+| `ATLASDOC_PORT` | `8000` | Port for `atlasdoc serve`. |
+| `ATLASDOC_MAX_UPLOAD_MB` | `100` | Largest PDF, in megabytes. Values below 1 are treated as 1. Applies to the UI and the CLI. |
+| `ATLASDOC_TIMEOUT` | `120` | Seconds for one page request. A timeout fails that page and the job continues. |
+| `ATLASDOC_MAX_RETRIES` | `1` | Extra attempts by the OpenAI client. `0` means one attempt. |
+| `ATLASDOC_MAX_TOKENS` | `8192` | `max_tokens` per page. A response that stops for length is marked truncated and still kept. |
 
-Örnek:
+DPI in the UI is clamped to 72–400. The CLI does the same.
+
+Model profiles and API keys in the web UI are stored in the browser's `localStorage`, not on the server.
+
+## Limitations
+
+- Strikethrough removal looks at vector lines and StrikeOut annotations, then paints over those glyphs before the image is sent. It does not detect a strike that exists only in a scanned picture. Underlines and table rules are left alone.
+- The vision model can still drop or invent text, including text the mask did not cover.
+- Pages are processed one at a time. A long PDF takes as long as the model takes.
+- The web UI is offline. The model is not bundled. You run LM Studio, Ollama, or another server yourself.
+
+## Development
 
 ```bash
-ATLASDOC_TIMEOUT=180 ATLASDOC_MAX_RETRIES=0 ATLASDOC_MAX_TOKENS=4096 \
-  python -m uvicorn app:app --host 127.0.0.1 --port 8000
+pip install -e ".[dev]"
+pytest
 ```
 
-## Testler
-
-GPU veya harici model sunucusu gerekmez. LLM çağrıları sahte istemciyle yürür.
+The committed CSS is built, not generated in the browser. After changing classes in `atlasdoc/static/index.html`:
 
 ```bash
-pip install -r requirements-dev.txt
-python -m pytest
+cd frontend && npm install && npm run build:css
 ```
 
-## Lisans
+## License
 
-AtlasDoc, [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0) ile lisanslanmıştır.
+AtlasDoc is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
 
 Copyright (C) 2026 Selçuk Metcan
 
-Bu seçim, bağımlılık olan **PyMuPDF**'in AGPL-3.0 veya Artifex ticari lisansı şeklinde çift lisanslı olmasından gelir. Uygulama bir ağ hizmeti olarak çalıştığı için AGPL'in ağ kullanımı koşulları geçerlidir. Başka bir proje lisansı tercih edilirse `LICENSE` ve bu bölüm güncellenmelidir; PyMuPDF'in kendi lisansı ayrıca geçerlidir.
+AGPL-3.0 is used because **PyMuPDF** is AGPL-3.0 or an Artifex commercial license. AtlasDoc is a network program, so the AGPL's network terms apply. PyMuPDF's license still applies on its own if you choose a different license for this project. Vendored UI files keep their own licenses; see [atlasdoc/static/vendor/NOTICE.md](atlasdoc/static/vendor/NOTICE.md).

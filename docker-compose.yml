@@ -1,0 +1,12 @@
+services:
+  atlasdoc:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ATLASDOC_HOST: 0.0.0.0
+      ATLASDOC_PORT: "8000"
+      # Reached from inside the container. LM Studio itself stays on the host.
+      ATLASDOC_BASE_URL: http://host.docker.internal:1234/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

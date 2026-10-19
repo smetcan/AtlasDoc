@@ -14,6 +14,25 @@ from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutEr
 DEFAULT_REQUEST_TIMEOUT = 120.0
 DEFAULT_MAX_RETRIES = 1
 DEFAULT_MAX_TOKENS = 8192
+DEFAULT_MODEL_NAME = "google/gemma-4-e4b"
+DEFAULT_PROVIDER = "lmstudio"
+
+
+def default_base_url() -> str:
+    """LM Studio (veya uyumlu) adresi. ATLASDOC_BASE_URL, yoksa LMSTUDIO_BASE_URL."""
+    return (
+        os.environ.get("ATLASDOC_BASE_URL", "").strip()
+        or os.environ.get("LMSTUDIO_BASE_URL", "").strip()
+        or "http://localhost:1234/v1"
+    )
+
+
+def default_model_name() -> str:
+    return os.environ.get("ATLASDOC_MODEL", "").strip() or DEFAULT_MODEL_NAME
+
+
+def default_provider() -> str:
+    return os.environ.get("ATLASDOC_PROVIDER", "").strip() or DEFAULT_PROVIDER
 
 
 def _env_int(name: str, default: int) -> int:
@@ -467,7 +486,10 @@ def resolve_provider_config(
     label = cfg["label"]
     requires_key = bool(cfg["requires_key"])
 
-    effective_url = (base_url or "").strip() or cfg["base_url"]
+    if not (base_url or "").strip() and norm_provider == "lmstudio":
+        effective_url = default_base_url()
+    else:
+        effective_url = (base_url or "").strip() or cfg["base_url"]
     # Ollama kullanıcıları bazen /v1 eklemeden http://localhost:11434 yazar
     if norm_provider == "ollama" and not effective_url.rstrip("/").endswith("/v1"):
         effective_url = effective_url.rstrip("/") + "/v1"

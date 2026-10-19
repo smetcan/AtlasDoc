@@ -4,38 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AtlasDoc — Vision-First PDF to Markdown</title>
-  <!-- Google Fonts: IBM Plex Sans & IBM Plex Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Tailwind Play CDN sürüm pinini desteklemez (tarayıcıda JIT derler). -->
-  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.17/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"IBM Plex Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            mono: ['"IBM Plex Mono"', 'monospace'],
-          },
-          colors: {
-            carbon: {
-              950: '#0a0a0a',
-              900: '#111111',
-              850: '#161616',
-              800: '#1e1e1e',
-              700: '#2a2a2a',
-              600: '#383838',
-            }
-          }
-        }
-      }
-    };
-  </script>
+  <!-- Yerel varlıklar. Sürümler ve lisanslar: /static/vendor/NOTICE.md -->
+  <link rel="stylesheet" href="/static/vendor/fonts.css" />
+  <link rel="stylesheet" href="/static/vendor/tailwind.css" />
+  <script src="/static/vendor/marked.umd.js"></script>
+  <script src="/static/vendor/purify.min.js"></script>
+  <script src="/static/vendor/mermaid.min.js"></script>
+  <script id="atlasdoc-config" type="application/json">__ATLASDOC_CONFIG__</script>
   <style>
     ::-webkit-scrollbar {
       width: 6px;
@@ -1112,6 +1087,26 @@
       renderActiveModelDropdown();
       loadProfileIntoForm(activeProfileId);
     });
+
+    // Sunucunun ATLASDOC_BASE_URL / ATLASDOC_MODEL değerleri, kayıtlı profil yokken varsayılan olur.
+    (function applyServerConfig() {
+      const node = document.getElementById('atlasdoc-config');
+      if (!node) return;
+      let cfg = {};
+      try {
+        cfg = JSON.parse(node.textContent || '{}');
+      } catch (_) {
+        return;
+      }
+      if (cfg.base_url) {
+        PROVIDER_PRESETS.lmstudio.baseUrl = cfg.base_url;
+        DEFAULT_PROFILES[0].baseUrl = cfg.base_url;
+      }
+      if (cfg.model_name) {
+        PROVIDER_PRESETS.lmstudio.defaultModel = cfg.model_name;
+        DEFAULT_PROFILES[0].modelName = cfg.model_name;
+      }
+    })();
 
     // Sayfa açılışında profilleri yükle
     loadProfilesFromStorage();

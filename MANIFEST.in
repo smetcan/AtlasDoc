@@ -1,0 +1,5 @@
+recursive-include atlasdoc/static *
+include LICENSE
+include README.md
+include README.tr.md
+include requirements.txt

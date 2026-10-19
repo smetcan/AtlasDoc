@@ -1,19 +1,26 @@
 import json
 import os
 from fastapi import FastAPI, File, Form, Request, UploadFile, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from converter import check_lm_studio_health, get_pdf_page_count, process_pdf_stream
+from converter import (
+    check_lm_studio_health,
+    default_base_url,
+    default_model_name,
+    default_provider,
+    get_pdf_page_count,
+    process_pdf_stream,
+)
 
 app = FastAPI(
     title="AtlasDoc — Vision-First PDF to Markdown",
     description="Yerel LM Studio (google/gemma-4-e4b) destekli PDF -> Markdown dönüştürücü",
-    version="1.1.0",
+    version="1.2.0",
 )
 
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "atlasdoc", "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -67,9 +74,25 @@ async def _read_upload_limited(file: UploadFile, max_bytes: int) -> bytes:
 
 class HealthCheckRequest(BaseModel):
     provider: str = "lmstudio"
-    base_url: str = "http://localhost:1234/v1"
-    model_name: str = "google/gemma-4-e4b"
+    base_url: str = ""
+    model_name: str = ""
     api_key: str = ""
+
+
+def _public_config() -> dict:
+    return {
+        "base_url": default_base_url(),
+        "model_name": default_model_name(),
+        "provider": default_provider(),
+    }
+
+
+def _index_html() -> str:
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    with open(index_path, encoding="utf-8") as handle:
+        html = handle.read()
+    payload = json.dumps(_public_config()).replace("<", "\\u003c")
+    return html.replace("__ATLASDOC_CONFIG__", payload)
 
 
 @app.get("/")
@@ -77,15 +100,20 @@ async def index():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="static/index.html bulunamadı.")
-    return FileResponse(index_path)
+    return HTMLResponse(_index_html(), headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/config")
+async def public_config():
+    return _public_config()
 
 
 @app.post("/api/health")
 async def health_check(payload: HealthCheckRequest):
     result = await check_lm_studio_health(
-        base_url=payload.base_url.strip(),
-        model_name=payload.model_name.strip(),
-        provider=payload.provider.strip(),
+        base_url=payload.base_url.strip() or default_base_url(),
+        model_name=payload.model_name.strip() or default_model_name(),
+        provider=payload.provider.strip() or default_provider(),
         api_key=payload.api_key.strip(),
     )
     return result
@@ -111,9 +139,9 @@ async def pdf_info(request: Request, file: UploadFile = File(...)):
 async def convert_pdf(
     request: Request,
     file: UploadFile = File(...),
-    provider: str = Form("lmstudio"),
-    base_url: str = Form("http://localhost:1234/v1"),
-    model_name: str = Form("google/gemma-4-e4b"),
+    provider: str = Form(""),
+    base_url: str = Form(""),
+    model_name: str = Form(""),
     api_key: str = Form(""),
     dpi: int = Form(200),
     page_ranges: str = Form(""),
@@ -133,11 +161,11 @@ async def convert_pdf(
     async def sse_event_generator():
         async for event in process_pdf_stream(
             pdf_bytes=pdf_bytes,
-            base_url=base_url.strip(),
-            model_name=model_name.strip(),
+            base_url=base_url.strip() or default_base_url(),
+            model_name=model_name.strip() or default_model_name(),
             dpi=safe_dpi,
             page_ranges=page_ranges.strip(),
-            provider=provider.strip(),
+            provider=provider.strip() or default_provider(),
             api_key=api_key.strip(),
         ):
             if await request.is_disconnected():
