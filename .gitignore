@@ -6,5 +6,6 @@ venv/
 env/
 .env
 *.log
+.pytest_cache/
 .DS_Store
 Thumbs.db
