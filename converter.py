@@ -1,11 +1,55 @@
+import asyncio
 import base64
+import os
 import re
-from typing import AsyncGenerator, Dict, Any, List, Optional
+from typing import AsyncGenerator, Dict, Any, List, Optional, Tuple
 try:
     import pymupdf as fitz
 except ImportError:
     import fitz  # PyMuPDF
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
+
+# SDK varsayılanı max_retries=2. Timeout ile çarpılınca bir sayfa çok uzun sürebilir.
+# Burada 120 sn ve 1 ek deneme esas alınır; ikisi de ortam değişkeniyle değişir.
+DEFAULT_REQUEST_TIMEOUT = 120.0
+DEFAULT_MAX_RETRIES = 1
+DEFAULT_MAX_TOKENS = 8192
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def resolve_llm_limits(
+    timeout: Optional[float] = None,
+    max_retries: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+) -> Tuple[float, int, int]:
+    """İstek timeout'u, retry sayısı ve max_tokens. Argüman, yoksa ortam değişkeni."""
+    if timeout is None:
+        timeout = _env_float("ATLASDOC_TIMEOUT", DEFAULT_REQUEST_TIMEOUT)
+    if max_retries is None:
+        max_retries = _env_int("ATLASDOC_MAX_RETRIES", DEFAULT_MAX_RETRIES)
+    if max_tokens is None:
+        max_tokens = _env_int("ATLASDOC_MAX_TOKENS", DEFAULT_MAX_TOKENS)
+    return max(1.0, float(timeout)), max(0, int(max_retries)), max(1, int(max_tokens))
+
 
 SYSTEM_PROMPT = """Sen uzman bir doküman OCR ve Markdown dönüştürme motorusun. Görevin, verilen sayfa görselini hiçbir veriyi atlamadan ve uydurmadan birebir Markdown formatına çevirmektir.
 
@@ -18,20 +62,113 @@ Kesin Kurallar:
 - Yorum yapma, açıklama ekleme, doğrudan Markdown çıktısını ver."""
 
 
-def clean_llm_markdown(raw_text: str, deleted_phrases: Optional[List[str]] = None) -> str:
+def _strip_surrounding_blank_lines(text: str) -> str:
+    """Baştaki ve sondaki boş satırları alır; satır girintisine dokunmaz."""
+    lines = text.splitlines()
+    start = 0
+    end = len(lines)
+    while start < end and not lines[start].strip():
+        start += 1
+    while end > start and not lines[end - 1].strip():
+        end -= 1
+    return "\n".join(lines[start:end])
+
+
+_FENCE_OPEN_RE = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})")
+
+
+def _is_fence_close(line: str, fence_char: str, fence_len: int) -> bool:
+    return (
+        re.match(rf"^[ ]{{0,3}}{re.escape(fence_char)}{{{fence_len},}}[ ]*$", line) is not None
+    )
+
+
+def _cleanup_prose(text: str) -> str:
+    """
+    Çit dışındaki metinde üstü çizili işaretleri, satır içi fazla boşluğu ve
+    noktalama öncesi boşluğu temizler. Satır başı girintisi korunur.
+    """
+    text = re.sub(r"~~[^~]+?~~", "", text)
+    text = re.sub(
+        r"<(?:del|s|strike)\b[^>]*>[\s\S]*?</(?:del|s|strike)>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    # Yalnızca iki yanında metin olan boşluk dizisini daralt. Satır başı
+    # girintisi ve satır sonundaki Markdown sert satır sonu (iki boşluk) kalır.
+    text = re.sub(r"(?<=\S)[^\S\r\n]{2,}(?=\S)", " ", text)
+    text = re.sub(r"[^\S\r\n]+([.,;:!?])", r"\1", text)
+    text = re.sub(r"\.,", ".", text)
+    return text
+
+
+def _cleanup_outside_fences(text: str) -> str:
+    """``` ve ~~~ çitlerinin içine dokunmaz; kapanmamış çiti de olduğu gibi bırakır."""
+    lines = text.splitlines()
+    parts: List[str] = []
+    prose: List[str] = []
+    code: List[str] = []
+    in_code = False
+    fence_char = ""
+    fence_len = 0
+
+    def flush_prose() -> None:
+        nonlocal prose
+        if prose:
+            parts.append(_cleanup_prose("\n".join(prose)))
+            prose = []
+
+    def flush_code() -> None:
+        nonlocal code
+        if code:
+            parts.append("\n".join(code))
+            code = []
+
+    for line in lines:
+        if not in_code:
+            match = _FENCE_OPEN_RE.match(line)
+            if match:
+                flush_prose()
+                in_code = True
+                token = match.group(1)
+                fence_char = token[0]
+                fence_len = len(token)
+                code.append(line)
+            else:
+                prose.append(line)
+            continue
+
+        code.append(line)
+        if _is_fence_close(line, fence_char, fence_len):
+            in_code = False
+            flush_code()
+
+    if in_code:
+        flush_code()
+    else:
+        flush_prose()
+
+    return "\n".join(parts)
+
+
+def clean_llm_markdown(raw_text: str) -> str:
     """
     Model çıktısındaki düşünme bloklarını (<think>...</think>, <|channel>thought...),
-    en dıştaki ```markdown ... ``` sarmalayıcılarını, üstü çizili (~~...~~, <del>...</del>)
-    işaretlerini ve PDF vektör analizinden tespit edilen silinmiş ifadeleri temizler.
+    en dıştaki ```markdown ... ``` sarmalayıcılarını ve ~~ / <del> işaretlerini temizler.
+    Satır girintisi ile çitli kod / mermaid bloklarının içeriği korunur.
+    Üstü çizili PDF metni görsel maskelemede kapatıldığı için çıktıdan ayrıca silinmez.
     """
     if not raw_text:
         return ""
 
-    text = raw_text.strip()
+    text = _strip_surrounding_blank_lines(raw_text)
+    if not text:
+        return ""
 
     # 1. <think>...</think> veya <thought>...</thought> bloklarını temizle
-    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE).strip()
-    text = re.sub(r"<thought>[\s\S]*?</thought>", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<thought>[\s\S]*?</thought>", "", text, flags=re.IGNORECASE)
 
     # 2. Gemma-4 / LM Studio özel kanal düşünme bloklarını temizle
     text = re.sub(
@@ -39,14 +176,16 @@ def clean_llm_markdown(raw_text: str, deleted_phrases: Optional[List[str]] = Non
         "",
         text,
         flags=re.IGNORECASE,
-    ).strip()
+    )
+    text = _strip_surrounding_blank_lines(text)
 
     if text.lower().startswith("<think>") and "</think>" not in text.lower():
-        text = re.sub(r"^<think>", "", text, flags=re.IGNORECASE).strip()
+        text = re.sub(r"^<think>", "", text, flags=re.IGNORECASE)
+        text = _strip_surrounding_blank_lines(text)
 
     # 3. En dıştaki ```markdown ... ``` veya ```md ... ``` sarmalayıcısını kaldır
     outer_fence_pattern = re.compile(
-        r"^(`{3,4})(?:markdown|md)?\s*\r?\n([\s\S]*?)\r?\n\1\s*$",
+        r"^(`{3,4})(?:markdown|md)\s*\n([\s\S]*?)\n\1\s*$",
         re.IGNORECASE,
     )
     match = outer_fence_pattern.match(text)
@@ -54,33 +193,17 @@ def clean_llm_markdown(raw_text: str, deleted_phrases: Optional[List[str]] = Non
         fence = match.group(1)
         inner_content = match.group(2)
         if fence not in inner_content:
-            text = inner_content.strip()
+            text = _strip_surrounding_blank_lines(inner_content)
     else:
-        if re.match(r"^`{3,4}(?:markdown|md)\s*\r?\n", text, re.IGNORECASE) and re.search(
-            r"\r?\n`{3,4}\s*$", text
+        if re.match(r"^`{3,4}(?:markdown|md)\s*\n", text, re.IGNORECASE) and re.search(
+            r"\n`{3,4}\s*$", text
         ):
-            text = re.sub(r"^`{3,4}(?:markdown|md)\s*\r?\n", "", text, count=1, flags=re.IGNORECASE)
-            text = re.sub(r"\r?\n`{3,4}\s*$", "", text, count=1)
-            text = text.strip()
+            text = re.sub(r"^`{3,4}(?:markdown|md)\s*\n", "", text, count=1, flags=re.IGNORECASE)
+            text = re.sub(r"\n`{3,4}\s*$", "", text, count=1)
+            text = _strip_surrounding_blank_lines(text)
 
-    # 4. Modelin ~~...~~, <del>...</del>, <s>...</s> olarak işaretlediği silinmiş metinleri kaldır
-    text = re.sub(r"~~[^~]+?~~", "", text)
-    text = re.sub(r"<(?:del|s|strike)\b[^>]*>[\s\S]*?</(?:del|s|strike)>", "", text, flags=re.IGNORECASE)
-
-    # 5. PDF katmanında tespit edilen silinmiş (üstü çizili) cümle parçaları varsa metinden temizle
-    if deleted_phrases:
-        for phrase in sorted(set(deleted_phrases), key=len, reverse=True):
-            clean_p = phrase.strip()
-            if len(clean_p) >= 3:
-                escaped = r"\s+".join(re.escape(tok) for tok in clean_p.split())
-                text = re.sub(escaped, "", text, flags=re.IGNORECASE)
-
-    # Silme sonrası satır içinde oluşabilecek çift boşlukları ve noktalama hatalarını düzelt
-    text = re.sub(r"([^\S\r\n]{2,})", lambda m: " " if "\n" not in m.group(0) else m.group(0), text)
-    text = re.sub(r" +([.,;:!?])", r"\1", text)
-    text = re.sub(r"\.,", ".", text)
-
-    return text
+    # 4. Çit dışındaki ~~ / <del> işaretleri ve satır içi boşluklar
+    return _strip_surrounding_blank_lines(_cleanup_outside_fences(text))
 
 
 def get_last_n_lines(text: str, n: int = 15) -> str:
@@ -273,6 +396,17 @@ def render_page_to_base64(
     return base64.b64encode(png_bytes).decode("utf-8"), deleted_phrases
 
 
+def render_page_from_bytes(
+    pdf_bytes: bytes, page_index: int, dpi: int = 200
+) -> tuple[str, List[str]]:
+    """
+    Sayfayı iş parçacığında render etmek için belgeyi bu çağrıda açar.
+    PyMuPDF Document nesnesi iş parçacıkları arasında paylaşılmaz.
+    """
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        return render_page_to_base64(doc, page_index, dpi=dpi)
+
+
 async def check_lm_studio_health(base_url: str, model_name: str) -> Dict[str, Any]:
     """LM Studio yerel sunucusuna bağlantıyı ve model durumunu test eder."""
     client = AsyncOpenAI(base_url=base_url.rstrip("/"), api_key="lm-studio", timeout=8.0)
@@ -312,28 +446,30 @@ async def process_pdf_stream(
     model_name: str = "google/gemma-4-e4b",
     dpi: int = 200,
     page_ranges: str = "",
+    timeout: Optional[float] = None,
+    max_retries: Optional[int] = None,
+    max_tokens: Optional[int] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     PDF'i seçilen sayfa/sayfa aralığına göre bellekte PNG'ye çevirir,
     ardışık sayfalarda Sliding Window bağlamıyla Vision LLM'e gönderir
     ve her adımı SSE (Server-Sent Events) için yield eder.
     """
+    timeout, max_retries, max_tokens = resolve_llm_limits(timeout, max_retries, max_tokens)
+
     try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        doc_total_pages = await asyncio.to_thread(get_pdf_page_count, pdf_bytes)
     except Exception as exc:
         yield {"type": "error", "message": f"PDF dosyası açılamadı veya bozuk: {str(exc)}"}
         return
 
-    doc_total_pages = len(doc)
     if doc_total_pages == 0:
-        doc.close()
         yield {"type": "error", "message": "PDF dosyasında işlenecek sayfa bulunamadı."}
         return
 
     try:
         target_pages = parse_page_ranges(page_ranges, doc_total_pages)
     except ValueError as val_exc:
-        doc.close()
         yield {"type": "error", "message": str(val_exc)}
         return
 
@@ -351,121 +487,156 @@ async def process_pdf_stream(
     client = AsyncOpenAI(
         base_url=base_url.rstrip("/"),
         api_key="lm-studio",
-        timeout=300.0,
+        timeout=timeout,
+        max_retries=max_retries,
     )
 
     previous_page_markdown: str = ""
     previous_page_num: Optional[int] = None
+    ok_pages: List[int] = []
+    failed_pages: List[int] = []
+    truncated_pages: List[int] = []
 
-    try:
-        for step_idx, page_num in enumerate(target_pages, start=1):
-            page_index = page_num - 1
+    for step_idx, page_num in enumerate(target_pages, start=1):
+        page_index = page_num - 1
 
-            # 1. Sayfayı bellekte üstü çizilileri maskeleyerek 200 DPI PNG -> Base64'e çevir
-            try:
-                img_b64, deleted_phrases = render_page_to_base64(doc, page_index, dpi=dpi)
-            except Exception as render_exc:
+        # 1. Maskeleme ve PNG render event loop dışında çalışır
+        try:
+            img_b64, _deleted_phrases = await asyncio.to_thread(
+                render_page_from_bytes, pdf_bytes, page_index, dpi
+            )
+        except Exception as render_exc:
+            failed_pages.append(page_num)
+            yield {
+                "type": "page_error",
+                "page": page_num,
+                "step": step_idx,
+                "total_pages": selected_count,
+                "message": f"Sayfa {page_num} görsele dönüştürülemedi: {str(render_exc)}",
+            }
+            continue
+
+        # Arayüze o an işlenen sayfanın küçük görselini ve durumunu bildir
+        yield {
+            "type": "page_start",
+            "page": page_num,
+            "step": step_idx,
+            "total_pages": selected_count,
+            "doc_total_pages": doc_total_pages,
+            "image_base64": img_b64,
+        }
+
+        # 2. Sliding Window (Bağlam Koruma)
+        is_consecutive = (previous_page_num is not None) and (previous_page_num == page_num - 1)
+        context_tail = get_last_n_lines(previous_page_markdown, n=15) if is_consecutive else ""
+
+        if context_tail:
+            user_text = (
+                f"Önceki sayfanın sonu (sadece bağlam için, bunu tekrar yazma):\n"
+                f"---\n{context_tail}\n---\n\n"
+                f"Şimdi ekteki {page_num}. sayfa görselini (önceki sayfadaki yarım kalan cümle veya tablo varsa devamlılığını koruyarak) "
+                f"birebir Markdown formatına çevir."
+            )
+        else:
+            user_text = (
+                f"Ekteki {page_num}. sayfa görselini hiçbir veriyi atlamadan birebir Markdown formatına çevir."
+            )
+
+        # 3. Vision LLM İsteği (Temperature = 0.1)
+        try:
+            response = await client.chat.completions.create(
+                model=model_name,
+                temperature=0.1,
+                max_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_text},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{img_b64}"
+                                },
+                            },
+                        ],
+                    },
+                ],
+            )
+            if not response.choices:
+                failed_pages.append(page_num)
                 yield {
                     "type": "page_error",
                     "page": page_num,
                     "step": step_idx,
                     "total_pages": selected_count,
-                    "message": f"Sayfa {page_num} görsele dönüştürülemedi: {str(render_exc)}",
+                    "message": f"Sayfa {page_num} için model boş yanıt döndürdü.",
                 }
                 continue
 
-            # Arayüze o an işlenen sayfanın küçük görselini ve durumunu bildir
+            choice = response.choices[0]
+            raw_output = choice.message.content or ""
+            finish_reason = getattr(choice, "finish_reason", None)
+            truncated = finish_reason == "length"
+            cleaned_md = clean_llm_markdown(raw_output)
+            previous_page_markdown = cleaned_md
+            previous_page_num = page_num
+            ok_pages.append(page_num)
+            if truncated:
+                truncated_pages.append(page_num)
+
             yield {
-                "type": "page_start",
+                "type": "page_done",
                 "page": page_num,
                 "step": step_idx,
                 "total_pages": selected_count,
                 "doc_total_pages": doc_total_pages,
-                "image_base64": img_b64,
+                "markdown": cleaned_md,
+                "truncated": truncated,
+                "finish_reason": finish_reason,
             }
 
-            # 2. Sliding Window (Bağlam Koruma)
-            is_consecutive = (previous_page_num is not None) and (previous_page_num == page_num - 1)
-            context_tail = get_last_n_lines(previous_page_markdown, n=15) if is_consecutive else ""
+        except APITimeoutError:
+            # APITimeoutError, APIConnectionError alt sınıfıdır; bu dal önce gelmeli.
+            failed_pages.append(page_num)
+            yield {
+                "type": "page_error",
+                "page": page_num,
+                "step": step_idx,
+                "total_pages": selected_count,
+                "message": f"Sayfa {page_num} zaman aşımına uğradı ({timeout:g} sn).",
+            }
+        except APIConnectionError:
+            failed_pages.append(page_num)
+            yield {
+                "type": "error",
+                "page": page_num,
+                "message": f"Sayfa {page_num} işlenirken LM Studio bağlantısı koptu ({base_url}).",
+            }
+            return
+        except APIStatusError as status_exc:
+            failed_pages.append(page_num)
+            yield {
+                "type": "error",
+                "page": page_num,
+                "message": f"LM Studio API Hatası ({status_exc.status_code}): {status_exc.message}",
+            }
+            return
+        except Exception as llm_exc:
+            failed_pages.append(page_num)
+            yield {
+                "type": "error",
+                "page": page_num,
+                "message": f"Sayfa {page_num} LLM hatası: {str(llm_exc)}",
+            }
+            return
 
-            if context_tail:
-                user_text = (
-                    f"Önceki sayfanın sonu (sadece bağlam için, bunu tekrar yazma):\n"
-                    f"---\n{context_tail}\n---\n\n"
-                    f"Şimdi ekteki {page_num}. sayfa görselini (önceki sayfadaki yarım kalan cümle veya tablo varsa devamlılığını koruyarak) "
-                    f"birebir Markdown formatına çevir."
-                )
-            else:
-                user_text = (
-                    f"Ekteki {page_num}. sayfa görselini hiçbir veriyi atlamadan birebir Markdown formatına çevir."
-                )
-
-            # 3. Vision LLM İsteği (Temperature = 0.1)
-            try:
-                response = await client.chat.completions.create(
-                    model=model_name,
-                    temperature=0.1,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": user_text},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/png;base64,{img_b64}"
-                                    },
-                                },
-                            ],
-                        },
-                    ],
-                )
-                raw_output = response.choices[0].message.content or ""
-                cleaned_md = clean_llm_markdown(raw_output, deleted_phrases=deleted_phrases)
-                previous_page_markdown = cleaned_md
-                previous_page_num = page_num
-
-                yield {
-                    "type": "page_done",
-                    "page": page_num,
-                    "step": step_idx,
-                    "total_pages": selected_count,
-                    "doc_total_pages": doc_total_pages,
-                    "markdown": cleaned_md,
-                }
-
-            except APIConnectionError:
-                yield {
-                    "type": "error",
-                    "message": f"Sayfa {page_num} işlenirken LM Studio bağlantısı koptu ({base_url}).",
-                }
-                return
-            except APITimeoutError:
-                yield {
-                    "type": "page_error",
-                    "page": page_num,
-                    "step": step_idx,
-                    "total_pages": selected_count,
-                    "message": f"Sayfa {page_num} zaman aşımına uğradı (300 sn).",
-                }
-            except APIStatusError as status_exc:
-                yield {
-                    "type": "error",
-                    "message": f"LM Studio API Hatası ({status_exc.status_code}): {status_exc.message}",
-                }
-                return
-            except Exception as llm_exc:
-                yield {
-                    "type": "error",
-                    "message": f"Sayfa {page_num} LLM hatası: {str(llm_exc)}",
-                }
-                return
-
-        yield {
-            "type": "complete",
-            "total_pages": selected_count,
-            "doc_total_pages": doc_total_pages,
-        }
-    finally:
-        doc.close()
+    yield {
+        "type": "complete",
+        "total_pages": selected_count,
+        "doc_total_pages": doc_total_pages,
+        "ok_pages": ok_pages,
+        "failed_pages": failed_pages,
+        "truncated_pages": truncated_pages,
+    }

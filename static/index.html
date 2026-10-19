@@ -4,12 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AtlasDoc — Vision-First PDF to Markdown</title>
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind Play CDN sürüm pinini desteklemez (tarayıcıda JIT derler). -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-  <!-- Marked.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- Mermaid.js CDN (Akış şeması ve diyagram önizlemesi için) -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.17/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -259,6 +258,7 @@
           </span>
           <span id="elapsedTimeText" class="font-mono">00:00</span>
         </div>
+        <p id="jobNotice" class="hidden mt-2 text-[11px] leading-relaxed text-amber-300"></p>
       </div>
 
       <!-- O An İşlenen Sayfanın Küçük Görsel Önizlemesi -->
@@ -436,6 +436,7 @@
     const downloadMdBtn = document.getElementById('downloadMdBtn');
     const completedPagesCount = document.getElementById('completedPagesCount');
     const charCountText = document.getElementById('charCountText');
+    const jobNotice = document.getElementById('jobNotice');
 
     // Uygulama Durumu (State)
     let selectedFile = null;
@@ -443,6 +444,8 @@
     let pageMode = 'all'; // 'all' | 'custom'
     let abortController = null;
     let pageResults = [];
+    let failedPages = [];
+    let truncatedPages = [];
     let timerInterval = null;
     let startTime = null;
     let activeTab = 'raw';
@@ -592,8 +595,13 @@
         return;
       }
 
-      const htmlContent = marked.parse(combined, { gfm: true, breaks: true });
-      previewPanel.innerHTML = htmlContent;
+      if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        previewPanel.textContent = 'Önizleme yüklenemedi: marked veya DOMPurify eksik.';
+        return;
+      }
+
+      const rawHtml = marked.parse(combined, { gfm: true, breaks: true });
+      previewPanel.innerHTML = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
 
       const mermaidBlocks = previewPanel.querySelectorAll('pre code.language-mermaid');
       mermaidBlocks.forEach((block) => {
@@ -679,6 +687,14 @@
           pdfTotalPagesBadge.classList.remove('hidden');
           selectedFileSize.textContent = `${sizeMB} MB • Toplam ${pdfTotalPages} sayfa`;
           pageRangesInput.placeholder = `Örn: 1-${Math.min(5, pdfTotalPages)}, ${Math.min(8, pdfTotalPages)} (Toplam ${pdfTotalPages} syf)`;
+        } else if (res.status === 413) {
+          const err = await res.json().catch(() => ({}));
+          selectedFile = null;
+          pdfFileInput.value = '';
+          startBtn.disabled = true;
+          pdfTotalPagesBadge.classList.add('hidden');
+          selectedFileSize.textContent = err.detail || 'Dosya boyutu sınırı aşıldı.';
+          return;
         } else {
           selectedFileSize.textContent = `${sizeMB} MB — Dönüştürmeye hazır`;
         }
@@ -734,6 +750,9 @@
       if (!selectedFile) return;
 
       pageResults = [];
+      failedPages = [];
+      truncatedPages = [];
+      renderJobNotice();
       updateCombinedMarkdownUI();
       startBtn.disabled = true;
       stopBtn.disabled = false;
@@ -804,6 +823,34 @@
       }
     }
 
+    function renderJobNotice() {
+      const parts = [];
+      if (failedPages.length) parts.push(`Başarısız sayfalar: ${failedPages.join(', ')}`);
+      if (truncatedPages.length) parts.push(`Token sınırında kesilen sayfalar: ${truncatedPages.join(', ')}`);
+      if (!parts.length) {
+        jobNotice.textContent = '';
+        jobNotice.classList.add('hidden');
+        return;
+      }
+      jobNotice.textContent = parts.join(' · ');
+      jobNotice.className = failedPages.length
+        ? 'mt-2 text-[11px] leading-relaxed text-rose-300'
+        : 'mt-2 text-[11px] leading-relaxed text-amber-300';
+    }
+
+    function completionStatus(event) {
+      const failed = Array.isArray(event.failed_pages) ? event.failed_pages : [];
+      const truncated = Array.isArray(event.truncated_pages) ? event.truncated_pages : [];
+      const okCount = Array.isArray(event.ok_pages) ? event.ok_pages.length : pageResults.length;
+      if (!failed.length && !truncated.length) {
+        return `Tamamlandı! (${okCount} sayfa başarıyla dönüştürüldü)`;
+      }
+      const parts = [`${okCount} sayfa dönüştürüldü`];
+      if (failed.length) parts.push(`başarısız sayfalar: ${failed.join(', ')}`);
+      if (truncated.length) parts.push(`token sınırında kesilen sayfalar: ${truncated.join(', ')}`);
+      return `Tamamlandı — ${parts.join('; ')}.`;
+    }
+
     function handleSseEvent(event) {
       switch (event.type) {
         case 'init': {
@@ -831,7 +878,9 @@
           const { page, step, total_pages, markdown } = event;
           const currentStep = step || page;
           pageResults.push({ page, markdown });
+          if (event.truncated && !truncatedPages.includes(page)) truncatedPages.push(page);
           updateCombinedMarkdownUI();
+          renderJobNotice();
 
           const pct = Math.round((currentStep / total_pages) * 100);
           progressBar.style.width = `${pct}%`;
@@ -840,19 +889,31 @@
           break;
         }
         case 'page_error': {
+          if (event.page && !failedPages.includes(event.page)) failedPages.push(event.page);
           progressStatusText.textContent = event.message;
+          if (event.step && event.total_pages) {
+            const pct = Math.round((event.step / event.total_pages) * 100);
+            progressBar.style.width = `${pct}%`;
+            progressPercentText.textContent = `${pct}%`;
+          }
+          renderJobNotice();
           imageScanningOverlay.classList.add('hidden');
           break;
         }
         case 'complete': {
+          if (Array.isArray(event.failed_pages)) failedPages = event.failed_pages.slice();
+          if (Array.isArray(event.truncated_pages)) truncatedPages = event.truncated_pages.slice();
           progressBar.style.width = '100%';
           progressPercentText.textContent = '100%';
-          progressStatusText.textContent = `Tamamlandı! (${event.total_pages} sayfa başarıyla dönüştürüldü)`;
+          progressStatusText.textContent = completionStatus(event);
+          renderJobNotice();
           imageScanningOverlay.classList.add('hidden');
           break;
         }
         case 'error': {
+          if (event.page && !failedPages.includes(event.page)) failedPages.push(event.page);
           progressStatusText.textContent = `Hata: ${event.message}`;
+          renderJobNotice();
           imageScanningOverlay.classList.add('hidden');
           break;
         }
