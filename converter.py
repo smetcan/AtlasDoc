@@ -407,37 +407,176 @@ def render_page_from_bytes(
         return render_page_to_base64(doc, page_index, dpi=dpi)
 
 
-async def check_lm_studio_health(base_url: str, model_name: str) -> Dict[str, Any]:
-    """LM Studio yerel sunucusuna bağlantıyı ve model durumunu test eder."""
-    client = AsyncOpenAI(base_url=base_url.rstrip("/"), api_key="lm-studio", timeout=8.0)
+PROVIDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
+    "lmstudio": {
+        "label": "LM Studio",
+        "base_url": "http://localhost:1234/v1",
+        "requires_key": False,
+        "default_key": "lm-studio",
+    },
+    "ollama": {
+        "label": "Ollama",
+        "base_url": "http://localhost:11434/v1",
+        "requires_key": False,
+        "default_key": "ollama",
+    },
+    "gemini": {
+        "label": "Google Gemini",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "requires_key": True,
+        "default_key": "",
+    },
+    "openai": {
+        "label": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "requires_key": True,
+        "default_key": "",
+    },
+    "anthropic": {
+        "label": "Anthropic",
+        "base_url": "https://api.anthropic.com/v1",
+        "requires_key": True,
+        "default_key": "",
+    },
+    "openrouter": {
+        "label": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "requires_key": True,
+        "default_key": "",
+    },
+    "custom": {
+        "label": "Özel (OpenAI Uyumlu)",
+        "base_url": "http://localhost:1234/v1",
+        "requires_key": False,
+        "default_key": "custom-key",
+    },
+}
+
+
+def resolve_provider_config(
+    provider: str = "lmstudio",
+    base_url: str = "",
+    api_key: str = "",
+) -> Tuple[str, str, str, bool]:
+    """
+    Sağlayıcı anahtarını, efektif base_url'i, efektif api_key'i ve
+    API anahtarının zorunlu olup olmadığını döndürür.
+    """
+    norm_provider = (provider or "lmstudio").strip().lower()
+    cfg = PROVIDER_DEFAULTS.get(norm_provider, PROVIDER_DEFAULTS["custom"])
+    label = cfg["label"]
+    requires_key = bool(cfg["requires_key"])
+
+    effective_url = (base_url or "").strip() or cfg["base_url"]
+    # Ollama kullanıcıları bazen /v1 eklemeden http://localhost:11434 yazar
+    if norm_provider == "ollama" and not effective_url.rstrip("/").endswith("/v1"):
+        effective_url = effective_url.rstrip("/") + "/v1"
+
+    clean_key = (api_key or "").strip()
+    effective_key = clean_key if clean_key else cfg["default_key"]
+
+    return label, effective_url.rstrip("/"), effective_key, requires_key
+
+
+def _normalize_model_id(model_id: str) -> str:
+    """Karşılaştırma için models/ önekini ve :latest sonekini normalize eder."""
+    m = (model_id or "").strip().lower()
+    if m.startswith("models/"):
+        m = m[len("models/"):]
+    return m
+
+
+async def check_provider_health(
+    base_url: str,
+    model_name: str,
+    provider: str = "lmstudio",
+    api_key: str = "",
+) -> Dict[str, Any]:
+    """Seçilen yerel veya bulut model sağlayıcısına bağlantıyı ve model durumunu test eder."""
+    label, effective_url, effective_key, requires_key = resolve_provider_config(
+        provider=provider, base_url=base_url, api_key=api_key
+    )
+
+    if requires_key and not (api_key or "").strip():
+        return {
+            "ok": False,
+            "available_models": [],
+            "model_found": False,
+            "message": f"{label} için API anahtarı (API Key) girilmelidir.",
+        }
+
+    client = AsyncOpenAI(base_url=effective_url, api_key=effective_key, timeout=10.0, max_retries=0)
     try:
         models_resp = await client.models.list()
         available_models = [m.id for m in models_resp.data]
-        model_found = any(model_name.lower() in m.lower() for m in available_models)
+        target_norm = _normalize_model_id(model_name)
+        target_base = target_norm.split(":")[0]
+
+        model_found = any(
+            target_norm in _normalize_model_id(m)
+            or _normalize_model_id(m) in target_norm
+            or (target_base and target_base == _normalize_model_id(m).split(":")[0])
+            for m in available_models
+        )
+
+        preview_models = ", ".join(available_models[:8])
+        if len(available_models) > 8:
+            preview_models += f" (+{len(available_models) - 8} model daha)"
+
         return {
             "ok": True,
             "available_models": available_models,
             "model_found": model_found,
             "message": (
-                f"Bağlantı başarılı! '{model_name}' hazır."
+                f"{label} bağlantısı başarılı! '{model_name}' hazır."
                 if model_found
-                else f"LM Studio aktif, ancak '{model_name}' listede görünmüyor. Yüklü modeller: {', '.join(available_models) or 'Yok'}"
+                else f"{label} erişilebilir, ancak '{model_name}' model listesinde görünmüyor. Mevcut modeller: {preview_models or 'Yok'}"
             ),
+        }
+    except APIStatusError as status_exc:
+        if status_exc.status_code in (401, 403):
+            return {
+                "ok": False,
+                "available_models": [],
+                "model_found": False,
+                "message": f"{label} kimlik doğrulama hatası ({status_exc.status_code}): API anahtarınızı kontrol edin.",
+            }
+        # Bazı OpenAI-uyumlu sağlayıcılar /models uç noktasını desteklemeyebilir
+        return {
+            "ok": False,
+            "available_models": [],
+            "model_found": False,
+            "message": f"{label} API Hatası ({status_exc.status_code}): {status_exc.message}",
         }
     except APIConnectionError:
         return {
             "ok": False,
             "available_models": [],
             "model_found": False,
-            "message": f"LM Studio sunucusuna ({base_url}) ulaşılamadı. Local Server'ın açık olduğundan emin olun.",
+            "message": f"{label} sunucusuna ({effective_url}) ulaşılamadı. Servisin açık olduğundan emin olun.",
         }
     except Exception as exc:
         return {
             "ok": False,
             "available_models": [],
             "model_found": False,
-            "message": f"Bağlantı hatası: {str(exc)}",
+            "message": f"{label} bağlantı hatası: {str(exc)}",
         }
+
+
+async def check_lm_studio_health(
+    base_url: str,
+    model_name: str,
+    provider: str = "lmstudio",
+    api_key: str = "",
+) -> Dict[str, Any]:
+    """Geriye dönük uyumluluk için check_provider_health sarmalayıcısı."""
+    return await check_provider_health(
+        base_url=base_url,
+        model_name=model_name,
+        provider=provider,
+        api_key=api_key,
+    )
 
 
 async def process_pdf_stream(
@@ -449,6 +588,8 @@ async def process_pdf_stream(
     timeout: Optional[float] = None,
     max_retries: Optional[int] = None,
     max_tokens: Optional[int] = None,
+    provider: str = "lmstudio",
+    api_key: str = "",
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     PDF'i seçilen sayfa/sayfa aralığına göre bellekte PNG'ye çevirir,
@@ -456,6 +597,16 @@ async def process_pdf_stream(
     ve her adımı SSE (Server-Sent Events) için yield eder.
     """
     timeout, max_retries, max_tokens = resolve_llm_limits(timeout, max_retries, max_tokens)
+    label, effective_url, effective_key, requires_key = resolve_provider_config(
+        provider=provider, base_url=base_url, api_key=api_key
+    )
+
+    if requires_key and not (api_key or "").strip():
+        yield {
+            "type": "error",
+            "message": f"{label} kullanımı için API anahtarı (API Key) gereklidir. Lütfen model ayarlarından anahtarınızı girin.",
+        }
+        return
 
     try:
         doc_total_pages = await asyncio.to_thread(get_pdf_page_count, pdf_bytes)
@@ -482,11 +633,12 @@ async def process_pdf_stream(
         "target_pages": target_pages,
         "dpi": dpi,
         "model": model_name,
+        "provider": provider,
     }
 
     client = AsyncOpenAI(
-        base_url=base_url.rstrip("/"),
-        api_key="lm-studio",
+        base_url=effective_url,
+        api_key=effective_key,
         timeout=timeout,
         max_retries=max_retries,
     )
@@ -612,7 +764,7 @@ async def process_pdf_stream(
             yield {
                 "type": "error",
                 "page": page_num,
-                "message": f"Sayfa {page_num} işlenirken LM Studio bağlantısı koptu ({base_url}).",
+                "message": f"Sayfa {page_num} işlenirken {label} bağlantısı koptu ({effective_url}).",
             }
             return
         except APIStatusError as status_exc:
@@ -620,7 +772,7 @@ async def process_pdf_stream(
             yield {
                 "type": "error",
                 "page": page_num,
-                "message": f"LM Studio API Hatası ({status_exc.status_code}): {status_exc.message}",
+                "message": f"{label} API Hatası ({status_exc.status_code}): {status_exc.message}",
             }
             return
         except Exception as llm_exc:

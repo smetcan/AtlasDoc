@@ -66,8 +66,10 @@ async def _read_upload_limited(file: UploadFile, max_bytes: int) -> bytes:
 
 
 class HealthCheckRequest(BaseModel):
+    provider: str = "lmstudio"
     base_url: str = "http://localhost:1234/v1"
     model_name: str = "google/gemma-4-e4b"
+    api_key: str = ""
 
 
 @app.get("/")
@@ -83,6 +85,8 @@ async def health_check(payload: HealthCheckRequest):
     result = await check_lm_studio_health(
         base_url=payload.base_url.strip(),
         model_name=payload.model_name.strip(),
+        provider=payload.provider.strip(),
+        api_key=payload.api_key.strip(),
     )
     return result
 
@@ -107,8 +111,10 @@ async def pdf_info(request: Request, file: UploadFile = File(...)):
 async def convert_pdf(
     request: Request,
     file: UploadFile = File(...),
+    provider: str = Form("lmstudio"),
     base_url: str = Form("http://localhost:1234/v1"),
     model_name: str = Form("google/gemma-4-e4b"),
+    api_key: str = Form(""),
     dpi: int = Form(200),
     page_ranges: str = Form(""),
 ):
@@ -131,6 +137,8 @@ async def convert_pdf(
             model_name=model_name.strip(),
             dpi=safe_dpi,
             page_ranges=page_ranges.strip(),
+            provider=provider.strip(),
+            api_key=api_key.strip(),
         ):
             if await request.is_disconnected():
                 break

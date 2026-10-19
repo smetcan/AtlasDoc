@@ -12,9 +12,11 @@ from converter import (
     DEFAULT_MAX_RETRIES,
     DEFAULT_MAX_TOKENS,
     DEFAULT_REQUEST_TIMEOUT,
+    check_provider_health,
     clean_llm_markdown,
     parse_page_ranges,
     process_pdf_stream,
+    resolve_provider_config,
 )
 
 
@@ -318,3 +320,43 @@ class TestProcessPdfStream:
         assert client.init_kwargs["timeout"] == DEFAULT_REQUEST_TIMEOUT
         assert client.init_kwargs["max_retries"] == DEFAULT_MAX_RETRIES
         assert client.chat.completions.calls[0]["max_tokens"] == DEFAULT_MAX_TOKENS
+
+    def test_cloud_provider_requires_api_key(self):
+        events, client = _collect(
+            _pdf_bytes(1),
+            [],
+            provider="gemini",
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+            model_name="gemini-2.5-flash",
+            api_key="",
+        )
+        assert client is None
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert "API Key" in events[0]["message"]
+
+    def test_ollama_and_cloud_provider_resolution(self):
+        label, url, key, req = resolve_provider_config("ollama", "http://localhost:11434", "")
+        assert label == "Ollama"
+        assert url == "http://localhost:11434/v1"
+        assert key == "ollama"
+        assert req is False
+
+        g_label, g_url, g_key, g_req = resolve_provider_config("gemini", "", "AIzaTestKey")
+        assert g_label == "Google Gemini"
+        assert g_url == "https://generativelanguage.googleapis.com/v1beta/openai"
+        assert g_key == "AIzaTestKey"
+        assert g_req is True
+
+    def test_health_check_rejects_missing_cloud_key(self):
+        res = asyncio.run(
+            check_provider_health(
+                base_url="",
+                model_name="gpt-4o-mini",
+                provider="openai",
+                api_key="",
+            )
+        )
+        assert res["ok"] is False
+        assert "API Key" in res["message"]
+

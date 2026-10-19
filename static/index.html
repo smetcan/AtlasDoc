@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AtlasDoc — Vision-First PDF to Markdown</title>
+  <!-- Google Fonts: IBM Plex Sans & IBM Plex Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind Play CDN sürüm pinini desteklemez (tarayıcıda JIT derler). -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js"></script>
@@ -14,10 +18,18 @@
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'monospace'],
+          },
           colors: {
-            slate: {
-              850: '#151f32',
-              925: '#0b1120',
+            carbon: {
+              950: '#0a0a0a',
+              900: '#111111',
+              850: '#161616',
+              800: '#1e1e1e',
+              700: '#2a2a2a',
+              600: '#383838',
             }
           }
         }
@@ -26,88 +38,96 @@
   </script>
   <style>
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: #0f172a;
+      background: #0a0a0a;
     }
     ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 4px;
+      background: #2a2a2a;
+      border-radius: 2px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #475569;
+      background: #3f3f3f;
     }
     .prose pre {
-      background-color: #090d16 !important;
-      border: 1px solid #1e293b;
+      background-color: #0d0d0d !important;
+      border: 1px solid #262626;
+      border-radius: 0.375rem;
     }
     .prose table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 1rem;
       margin-bottom: 1rem;
+      font-size: 0.85rem;
     }
     .prose th, .prose td {
-      border: 1px solid #334155;
+      border: 1px solid #2a2a2a;
       padding: 0.5rem 0.75rem;
     }
     .prose th {
-      background-color: #1e293b;
+      background-color: #161616;
+      color: #e5e5e5;
+      font-weight: 600;
+    }
+    .prose hr {
+      border-color: #262626;
+    }
+    .prose blockquote {
+      border-left-color: #525252;
+      color: #a3a3a3;
     }
   </style>
 </head>
-<body class="bg-slate-925 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+<body class="bg-carbon-950 text-neutral-200 min-h-screen lg:h-screen lg:overflow-hidden flex flex-col font-sans antialiased selection:bg-neutral-200 selection:text-carbon-950">
 
-  <!-- ÜST BAR (Ayarlar & Bağlantı Testi) -->
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
-    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+  <!-- ÜST BAR (Aktif Model Seçimi, Modelleri Yönet, DPI & Bağlantı Testi) -->
+  <header class="border-b border-carbon-800 bg-carbon-900 sticky top-0 z-30">
+    <div class="max-w-[1640px] mx-auto px-5 py-3 flex flex-wrap items-center justify-between gap-4">
       <!-- Logo & Başlık -->
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <div class="w-9 h-9 rounded-md bg-carbon-850 border border-carbon-700 flex items-center justify-center text-neutral-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-base font-bold tracking-tight text-white">AtlasDoc</h1>
-            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Vision-First PDF to Markdown</span>
-          </div>
-          <p class="text-xs text-slate-400">PyMuPDF (In-Memory) + Sliding Window + LM Studio Vision</p>
-        </div>
+        <h1 class="text-sm font-semibold tracking-tight text-neutral-100 uppercase font-mono">AtlasDoc</h1>
       </div>
 
-      <!-- Ayar Kutucukları & Health Check -->
-      <div class="flex flex-wrap items-center gap-2.5">
-        <!-- Base URL -->
+      <!-- Model Seçici, Yönetim Butonu, DPI & Health Check -->
+      <div class="flex flex-wrap items-end gap-2.5">
+        <!-- Aktif Model Seçici (Dropdown) -->
         <div class="flex flex-col">
-          <label for="baseUrlInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">LM Studio API URL</label>
-          <input
-            id="baseUrlInput"
-            type="text"
-            value="http://localhost:1234/v1"
-            class="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-52 font-mono"
-            placeholder="http://localhost:1234/v1"
-          />
-        </div>
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <label for="activeModelSelect" class="text-[10px] font-mono uppercase tracking-wider text-neutral-500">Aktif Vision Model</label>
+            <span id="activeProviderBadge" class="text-[10px] font-mono text-neutral-400">LM Studio</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <select
+              id="activeModelSelect"
+              class="bg-carbon-950 border border-carbon-700 rounded px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-neutral-400 min-w-[260px] max-w-[340px] font-mono transition-colors cursor-pointer"
+            ></select>
 
-        <!-- Model Adı -->
-        <div class="flex flex-col">
-          <label for="modelNameInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Vision Model</label>
-          <input
-            id="modelNameInput"
-            type="text"
-            value="google/gemma-4-e4b"
-            class="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-48 font-mono"
-            placeholder="google/gemma-4-e4b"
-          />
+            <button
+              id="openModelModalBtn"
+              type="button"
+              title="Modelleri Tanımla ve Yönet"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 hover:bg-carbon-800 text-neutral-200 border border-carbon-700 transition cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Modeller</span>
+            </button>
+          </div>
         </div>
 
         <!-- DPI -->
         <div class="flex flex-col">
-          <label for="dpiInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">DPI</label>
+          <label for="dpiInput" class="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mb-1">Render DPI</label>
           <input
             id="dpiInput"
             type="number"
@@ -115,18 +135,18 @@
             max="400"
             step="10"
             value="200"
-            class="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-20 font-mono text-center"
+            class="bg-carbon-950 border border-carbon-700 rounded px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-neutral-400 w-20 font-mono text-center transition-colors"
           />
         </div>
 
         <!-- Bağlantı Test Butonu -->
-        <div class="flex flex-col justify-end pt-3.5">
+        <div class="flex flex-col justify-end">
           <button
             id="healthCheckBtn"
             type="button"
-            class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 hover:bg-carbon-800 text-neutral-200 border border-carbon-700 transition cursor-pointer"
           >
-            <span id="healthDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span id="healthDot" class="w-2 h-2 rounded-full bg-neutral-500"></span>
             <span>Bağlantı Testi</span>
           </button>
         </div>
@@ -134,25 +154,25 @@
     </div>
 
     <!-- Bağlantı Durum Bildirimi Barı -->
-    <div id="healthBanner" class="hidden border-t border-slate-800/80 px-4 py-1.5 text-xs">
-      <div class="max-w-[1600px] mx-auto flex items-center justify-between">
+    <div id="healthBanner" class="hidden border-t border-carbon-800 px-5 py-2 text-xs font-mono">
+      <div class="max-w-[1640px] mx-auto flex items-center justify-between">
         <span id="healthMessage"></span>
-        <button onclick="document.getElementById('healthBanner').classList.add('hidden')" class="text-slate-400 hover:text-white ml-4">✕</button>
+        <button onclick="document.getElementById('healthBanner').classList.add('hidden')" class="text-neutral-500 hover:text-neutral-200 ml-4">✕</button>
       </div>
     </div>
   </header>
 
   <!-- ANA EKRAN (SPLIT VIEW) -->
-  <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
+  <main class="flex-1 min-h-0 max-w-[1640px] w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
 
-    <!-- SOL PANEL: PDF Yükleme, Sayfa Seçimi, İlerleme & Küçük Görsel Önizleme (4 Sütun) -->
-    <section class="lg:col-span-4 flex flex-col gap-4">
+    <!-- SOL PANEL: PDF Yükleme, Sayfa Seçimi, İlerleme & Küçük Görsel Önizlemesi (4 Sütun) -->
+    <section class="lg:col-span-4 flex flex-col gap-3.5 min-h-0 lg:overflow-y-auto">
 
       <!-- Sürükle-Bırak PDF Yükleme & Sayfa Seçimi Kartı -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+      <div class="bg-carbon-900 border border-carbon-800 rounded-lg p-4">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">1. PDF Dokümanı &amp; Sayfa Seçimi</h2>
-          <span id="pdfTotalPagesBadge" class="hidden text-[11px] font-medium px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+          <h2 class="text-[11px] font-mono font-semibold uppercase tracking-wider text-neutral-400">01 / Kaynak Doküman</h2>
+          <span id="pdfTotalPagesBadge" class="hidden text-[11px] font-mono px-2 py-0.5 rounded bg-carbon-850 text-neutral-300 border border-carbon-700">
             Toplam: - sayfa
           </span>
         </div>
@@ -160,65 +180,64 @@
         <label
           id="dropZone"
           for="pdfFileInput"
-          class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-indigo-500/80 rounded-xl p-5 text-center cursor-pointer transition bg-slate-950/50 hover:bg-indigo-950/10"
+          class="flex flex-col items-center justify-center border border-dashed border-carbon-600 hover:border-neutral-400 rounded-md p-5 text-center cursor-pointer transition bg-carbon-950 hover:bg-carbon-850/60"
         >
           <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" class="hidden" />
-          <div class="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          <div class="w-9 h-9 rounded bg-carbon-850 border border-carbon-700 text-neutral-300 flex items-center justify-center mb-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
           </div>
-          <p id="selectedFileName" class="text-sm font-medium text-slate-200">PDF dosyasını sürükleyin veya tıklayın</p>
-          <p id="selectedFileSize" class="text-xs text-slate-500 mt-0.5">Bellekte (In-Memory) 200 DPI PNG olarak işlenir</p>
+          <p id="selectedFileName" class="text-xs font-medium text-neutral-200">PDF dosyasını sürükleyin veya seçin</p>
+          <p id="selectedFileSize" class="text-[11px] font-mono text-neutral-500 mt-1">Bellekte (In-Memory) PNG olarak işlenir</p>
         </label>
 
         <!-- Sayfa ve Sayfa Aralığı Seçim Alanı -->
-        <div class="mt-3.5 pt-3.5 border-t border-slate-800/80">
+        <div class="mt-3.5 pt-3.5 border-t border-carbon-800">
           <div class="flex items-center justify-between mb-2">
-            <label class="text-xs font-medium text-slate-300">İşlenecek Sayfalar</label>
-            <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-[11px]">
+            <label class="text-xs font-medium text-neutral-300">Sayfa Kapsamı</label>
+            <div class="inline-flex rounded bg-carbon-950 p-0.5 border border-carbon-800 text-[11px] font-mono">
               <button
                 id="modeAllPagesBtn"
                 type="button"
-                class="px-2.5 py-1 rounded-md font-medium bg-indigo-600 text-white transition cursor-pointer"
+                class="px-2.5 py-1 rounded-sm font-medium bg-neutral-200 text-carbon-950 transition cursor-pointer"
               >
                 Tüm Sayfalar
               </button>
               <button
                 id="modeCustomPagesBtn"
                 type="button"
-                class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                class="px-2.5 py-1 rounded-sm font-medium text-neutral-400 hover:text-neutral-200 transition cursor-pointer"
               >
                 Özel Aralık
               </button>
             </div>
           </div>
 
-          <div id="customRangeContainer" class="hidden space-y-1.5 mt-2">
+          <div id="customRangeContainer" class="hidden space-y-1.5 mt-2.5">
             <div class="relative">
               <input
                 id="pageRangesInput"
                 type="text"
                 placeholder="Örn: 1-5, 8, 11-14 veya 5-"
-                class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-1.5 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
               />
             </div>
-            <div class="flex items-center justify-between text-[11px]">
-              <span id="rangeHelperText" class="text-slate-400">Tek sayfa (`4`), aralık (`1-5`) veya açık uçlu (`10-`) yazabilirsiniz.</span>
+            <div class="flex items-center justify-between text-[11px] font-mono">
+              <span id="rangeHelperText" class="text-neutral-500">Tek sayfa (4), aralık (1-5) veya açık uçlu (10-)</span>
             </div>
           </div>
         </div>
 
         <!-- Başlat & Durdur Butonları -->
-        <div class="mt-4 flex items-center gap-2.5">
+        <div class="mt-4 flex items-center gap-2">
           <button
             id="startBtn"
             disabled
-            class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white transition shadow-lg shadow-indigo-600/20 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed"
+            class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-mono font-semibold uppercase tracking-wider bg-neutral-100 hover:bg-white disabled:bg-carbon-850 disabled:text-neutral-600 disabled:border-carbon-800 text-carbon-950 border border-transparent transition cursor-pointer disabled:cursor-not-allowed"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span id="startBtnLabel">Dönüştürmeyi Başlat</span>
           </button>
@@ -226,9 +245,9 @@
           <button
             id="stopBtn"
             disabled
-            class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-rose-600/90 hover:bg-rose-600 disabled:bg-slate-800 disabled:text-slate-600 text-white transition cursor-pointer disabled:cursor-not-allowed"
+            class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded text-xs font-mono font-medium bg-red-950/60 hover:bg-red-900/80 text-red-200 border border-red-800/80 disabled:bg-carbon-850 disabled:text-neutral-600 disabled:border-carbon-800 transition cursor-pointer disabled:cursor-not-allowed"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
             <span>Durdur</span>
@@ -237,58 +256,58 @@
       </div>
 
       <!-- İlerleme Çubuğu (Progress) Kartı -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+      <div class="bg-carbon-900 border border-carbon-800 rounded-lg p-4">
         <div class="flex items-center justify-between mb-2">
-          <span id="progressStatusText" class="text-xs font-medium text-slate-300">Hazır — PDF bekleniyor</span>
-          <span id="progressPercentText" class="text-xs font-mono font-semibold text-indigo-400">0%</span>
+          <span id="progressStatusText" class="text-xs font-mono text-neutral-300">Hazır — PDF bekleniyor</span>
+          <span id="progressPercentText" class="text-xs font-mono font-semibold text-neutral-200">0%</span>
         </div>
 
-        <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+        <div class="w-full h-1.5 bg-carbon-950 rounded-sm overflow-hidden border border-carbon-800">
           <div
             id="progressBar"
-            class="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-300"
+            class="h-full bg-neutral-200 transition-all duration-300"
             style="width: 0%"
           ></div>
         </div>
 
-        <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
-          <span id="slidingWindowBadge" class="inline-flex items-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            Sliding Window + Strikethrough Masking aktif
+        <div class="mt-2.5 flex items-center justify-between text-[11px] font-mono text-neutral-500">
+          <span id="slidingWindowBadge" class="inline-flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>
+            Sliding Window: 15 satır
           </span>
-          <span id="elapsedTimeText" class="font-mono">00:00</span>
+          <span id="elapsedTimeText" class="text-neutral-400">00:00</span>
         </div>
-        <p id="jobNotice" class="hidden mt-2 text-[11px] leading-relaxed text-amber-300"></p>
+        <p id="jobNotice" class="hidden mt-2 text-[11px] font-mono leading-relaxed text-amber-300"></p>
       </div>
 
       <!-- O An İşlenen Sayfanın Küçük Görsel Önizlemesi -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex-1 flex flex-col min-h-[260px]">
+      <div class="bg-carbon-900 border border-carbon-800 rounded-lg p-4 flex-1 flex flex-col min-h-[250px]">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Aktif Sayfa Görseli (In-Memory)</h2>
-          <span id="currentPageBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">- / -</span>
+          <h2 class="text-[11px] font-mono font-semibold uppercase tracking-wider text-neutral-400">02 / Aktif Sayfa Render</h2>
+          <span id="currentPageBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-carbon-850 text-neutral-400 border border-carbon-700">- / -</span>
         </div>
 
-        <div class="flex-1 bg-slate-950 border border-slate-800/80 rounded-xl flex items-center justify-center overflow-hidden relative p-2">
-          <div id="previewPlaceholder" class="text-center p-6 text-slate-500 text-xs">
-            <svg class="w-10 h-10 mx-auto mb-2 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex-1 bg-carbon-950 border border-carbon-800 rounded-md flex items-center justify-center overflow-hidden relative p-2">
+          <div id="previewPlaceholder" class="text-center p-6 text-neutral-600 text-xs font-mono">
+            <svg class="w-8 h-8 mx-auto mb-2 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            İşlem başladığında o anki sayfanın 200 DPI PNG görüntüsü burada belirecek.
+            İşlem başladığında sayfa görüntüsü burada belirecek.
           </div>
           <img
             id="currentPageImage"
             src=""
             alt="İşlenen Sayfa Önizlemesi"
-            class="hidden max-h-[340px] w-auto object-contain rounded shadow-md transition-opacity duration-200"
+            class="hidden max-h-[340px] w-auto object-contain rounded-sm border border-carbon-800 transition-opacity duration-200"
           />
           <!-- İşleniyor animasyon katmanı -->
-          <div id="imageScanningOverlay" class="hidden absolute inset-0 bg-indigo-950/20 backdrop-blur-[1px] flex items-end justify-center p-3">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-indigo-500/40 text-xs text-indigo-300 shadow">
-              <svg class="w-3.5 h-3.5 animate-spin text-indigo-400" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          <div id="imageScanningOverlay" class="hidden absolute inset-0 bg-carbon-950/60 flex items-end justify-center p-3">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded bg-carbon-900 border border-carbon-700 text-xs font-mono text-neutral-200">
+              <svg class="w-3.5 h-3.5 animate-spin text-neutral-300" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                <path class="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
-              <span>Vision LLM sayfayı okuyor...</span>
+              <span>Vision LLM okuyor...</span>
             </div>
           </div>
         </div>
@@ -297,23 +316,23 @@
     </section>
 
     <!-- SAĞ PANEL: Canlı Markdown Çıktısı & Sekmeler (8 Sütun) -->
-    <section class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-sm min-h-[640px]">
+    <section class="lg:col-span-8 bg-carbon-900 border border-carbon-800 rounded-lg flex flex-col overflow-hidden h-[640px] lg:h-full min-h-0">
 
       <!-- Sekme Başlıkları & Aksiyon Butonları -->
-      <div class="border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 bg-slate-900/60">
+      <div class="border-b border-carbon-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 bg-carbon-900">
         <!-- Sekmeler: Raw Markdown & Live Preview -->
-        <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+        <div class="flex items-center bg-carbon-950 p-0.5 rounded border border-carbon-800 font-mono">
           <button
             id="tabRawBtn"
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow cursor-pointer"
+            class="px-3.5 py-1.5 rounded-sm text-xs font-medium transition bg-neutral-200 text-carbon-950 cursor-pointer"
           >
             Raw Markdown
           </button>
           <button
             id="tabPreviewBtn"
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 cursor-pointer"
+            class="px-3.5 py-1.5 rounded-sm text-xs font-medium transition text-neutral-400 hover:text-neutral-200 cursor-pointer"
           >
             Live Preview
           </button>
@@ -321,82 +340,390 @@
 
         <!-- Sağ Üst/Alt Aksiyonlar: Sayfa Ayırıcı Checkbox, Copy All, Download .md -->
         <div class="flex flex-wrap items-center gap-2">
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 mr-2 cursor-pointer select-none">
-            <input id="pageSeparatorToggle" type="checkbox" class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
-            <span>Sayfa ayırıcıları ekle (`---`)</span>
+          <label class="inline-flex items-center gap-1.5 text-xs font-mono text-neutral-400 mr-2 cursor-pointer select-none">
+            <input id="pageSeparatorToggle" type="checkbox" class="rounded-sm bg-carbon-950 border-carbon-700 text-neutral-200 focus:ring-0 accent-neutral-200" />
+            <span>Sayfa ayırıcı (`---`)</span>
           </label>
 
           <button
             id="copyAllBtn"
             disabled
             type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 border border-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 hover:bg-carbon-800 disabled:opacity-40 text-neutral-200 border border-carbon-700 transition cursor-pointer disabled:cursor-not-allowed"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
-            <span id="copyBtnText">Copy All</span>
+            <span id="copyBtnText">Kopyala</span>
           </button>
 
           <button
             id="downloadMdBtn"
             disabled
             type="button"
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition shadow-sm cursor-pointer disabled:cursor-not-allowed"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-mono font-semibold bg-neutral-100 hover:bg-white disabled:opacity-40 text-carbon-950 transition cursor-pointer disabled:cursor-not-allowed"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span>Download .md</span>
+            <span>İndir (.md)</span>
           </button>
         </div>
       </div>
 
       <!-- İçerik Gövdesi -->
-      <div class="flex-1 relative overflow-hidden flex flex-col">
+      <div class="flex-1 min-h-0 relative overflow-hidden">
         <!-- SEKMELER 1: Raw Markdown -->
-        <div id="rawPanel" class="flex-1 flex flex-col h-full">
+        <div id="rawPanel" class="absolute inset-0 flex flex-col">
           <textarea
             id="rawMarkdownOutput"
             readonly
             placeholder="Sayfalar işlendikçe temizlenmiş saf Markdown çıktısı burada gerçek zamanlı olarak akacak..."
-            class="w-full flex-1 bg-slate-950 text-slate-200 font-mono text-xs leading-relaxed p-5 focus:outline-none resize-none overflow-y-auto"
+            class="w-full h-full bg-carbon-950 text-neutral-200 font-mono text-xs leading-relaxed p-5 focus:outline-none resize-none overflow-y-auto placeholder:text-neutral-600"
           ></textarea>
         </div>
 
         <!-- SEKMELER 2: Live Preview -->
         <div
           id="previewPanel"
-          class="hidden flex-1 bg-slate-950 p-6 overflow-y-auto prose prose-invert prose-slate max-w-none prose-headings:text-slate-100 prose-a:text-indigo-400 prose-code:text-amber-300"
+          class="hidden absolute inset-0 bg-carbon-950 p-6 overflow-y-auto prose prose-invert max-w-none prose-headings:text-neutral-100 prose-headings:font-semibold prose-p:text-neutral-300 prose-a:text-neutral-200 prose-a:underline prose-code:text-neutral-200 prose-code:bg-carbon-850 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-sm prose-strong:text-neutral-100"
         >
-          <p class="text-slate-500 text-sm italic">Henüz görüntülenecek Markdown çıktısı yok.</p>
+          <p class="text-neutral-600 text-xs font-mono">Henüz görüntülenecek Markdown çıktısı yok.</p>
         </div>
       </div>
 
       <!-- Alt Durum Barı -->
-      <div class="border-t border-slate-800 bg-slate-900/90 px-4 py-2 flex items-center justify-between text-xs text-slate-400">
+      <div class="border-t border-carbon-800 bg-carbon-900 px-4 py-2 flex items-center justify-between text-[11px] font-mono text-neutral-500">
         <div class="flex items-center gap-4">
           <span id="completedPagesCount">Tamamlanan Sayfa: 0</span>
           <span id="charCountText">Karakter: 0</span>
-        </div>
-        <div class="text-[11px] text-slate-500">
-          AtlasDoc v1.1 | Temperature: <code class="text-slate-300">0.1</code> | Post-Processing: <code class="text-slate-300">Vector Masking &amp; Clean MD</code>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- MODEL YÖNETİMİ VE TANIMLAMA MODALI -->
+  <div id="modelModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-[2px] flex items-center justify-center p-4">
+    <div class="bg-carbon-900 border border-carbon-700 rounded-lg w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+      <!-- Modal Üst Bar -->
+      <div class="border-b border-carbon-800 px-5 py-3.5 flex items-center justify-between bg-carbon-950">
+        <div>
+          <h2 class="text-xs font-mono font-semibold uppercase tracking-wider text-neutral-100">AI Vision Model Profilleri</h2>
+          <p class="text-[11px] font-mono text-neutral-500 mt-0.5">Yerel (LM Studio, Ollama) ve bulut (Gemini, OpenAI, Anthropic, OpenRouter) modelleri tanımlayın</p>
+        </div>
+        <button id="closeModelModalBtn" type="button" class="text-neutral-500 hover:text-neutral-200 px-2 py-1 text-sm font-mono cursor-pointer">✕</button>
+      </div>
+
+      <!-- Modal Gövdesi (Sol: Kayıtlı Modeller, Sağ: Profil Formu) -->
+      <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 overflow-hidden">
+
+        <!-- SOL SÜTUN: Kayıtlı Profiller Listesi (5 Sütun) -->
+        <div class="md:col-span-5 border-b md:border-b-0 md:border-r border-carbon-800 flex flex-col min-h-0 bg-carbon-950/60">
+          <div class="p-3.5 border-b border-carbon-800 flex items-center justify-between">
+            <span class="text-[11px] font-mono uppercase tracking-wider text-neutral-400">Kayıtlı Modeller</span>
+            <button
+              id="newProfileBtn"
+              type="button"
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-mono font-medium bg-neutral-200 hover:bg-white text-carbon-950 transition cursor-pointer"
+            >
+              <span>+ Yeni Ekle</span>
+            </button>
+          </div>
+
+          <div id="profileListContainer" class="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+            <!-- JS ile doldurulur -->
+          </div>
+        </div>
+
+        <!-- SAĞ SÜTUN: Model Tanım / Düzenleme Formu (7 Sütun) -->
+        <div class="md:col-span-7 p-5 overflow-y-auto flex flex-col justify-between bg-carbon-900">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between border-b border-carbon-800 pb-2.5">
+              <h3 id="profileFormTitle" class="text-xs font-mono font-semibold uppercase tracking-wider text-neutral-200">Profil Düzenle</h3>
+              <span id="profileFormBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-carbon-850 text-neutral-400 border border-carbon-700">Yerel</span>
+            </div>
+
+            <!-- Sağlayıcı (Provider) Seçimi -->
+            <div>
+              <label for="profileProviderInput" class="block text-[11px] font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Sağlayıcı (Provider)</label>
+              <select
+                id="profileProviderInput"
+                class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400 cursor-pointer"
+              >
+                <option value="lmstudio">LM Studio (Yerel — OpenAI Uyumlu)</option>
+                <option value="ollama">Ollama (Yerel — OpenAI Uyumlu)</option>
+                <option value="gemini">Google Gemini API</option>
+                <option value="openai">OpenAI API</option>
+                <option value="anthropic">Anthropic (Claude) API</option>
+                <option value="openrouter">OpenRouter API</option>
+                <option value="custom">Özel (Custom OpenAI-Uyumlu Sunucu)</option>
+              </select>
+            </div>
+
+            <!-- Profil Adı -->
+            <div>
+              <label for="profileNameInput" class="block text-[11px] font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Profil Görünür Adı</label>
+              <input
+                id="profileNameInput"
+                type="text"
+                placeholder="Örn: Yerel Gemma 4 (LM Studio) veya Gemini 2.5 Flash"
+                class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
+              />
+            </div>
+
+            <!-- Base URL -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="profileBaseUrlInput" class="text-[11px] font-mono uppercase tracking-wider text-neutral-400">API Endpoint (Base URL)</label>
+                <button id="resetDefaultUrlBtn" type="button" class="text-[10px] font-mono text-neutral-500 hover:text-neutral-300 underline cursor-pointer">Varsayılan URL</button>
+              </div>
+              <input
+                id="profileBaseUrlInput"
+                type="text"
+                placeholder="http://localhost:1234/v1"
+                class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
+              />
+            </div>
+
+            <!-- API Key (Yerel olmayanlar ve isteğe bağlı yerel için) -->
+            <div id="apiKeyFieldWrapper">
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="profileApiKeyInput" class="text-[11px] font-mono uppercase tracking-wider text-neutral-400">API Anahtarı (API Key)</label>
+                <span id="apiKeyRequirementHint" class="text-[10px] font-mono text-neutral-500">Yerel servislerde opsiyonel</span>
+              </div>
+              <div class="relative flex items-center">
+                <input
+                  id="profileApiKeyInput"
+                  type="password"
+                   autocomplete="off"
+                  placeholder="sk-... / AIza..."
+                  class="w-full bg-carbon-950 border border-carbon-700 rounded pl-3 pr-16 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
+                />
+                <button
+                  id="toggleApiKeyVisBtn"
+                  type="button"
+                  class="absolute right-2 px-2 py-0.5 text-[10px] font-mono text-neutral-400 hover:text-neutral-200 bg-carbon-850 rounded border border-carbon-700 cursor-pointer"
+                >
+                  Göster
+                </button>
+              </div>
+              <p class="text-[10px] font-mono text-neutral-500 mt-1">Anahtar yalnızca bu tarayıcıda (localStorage) saklanır.</p>
+            </div>
+
+            <!-- Model ID + Sunucudan Modelleri Çek -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="profileModelIdInput" class="text-[11px] font-mono uppercase tracking-wider text-neutral-400">Model Kimliği (Model ID)</label>
+                <button
+                  id="fetchModelsBtn"
+                  type="button"
+                  class="inline-flex items-center gap-1 text-[10px] font-mono text-neutral-300 hover:text-white bg-carbon-850 hover:bg-carbon-800 px-2 py-0.5 rounded border border-carbon-700 transition cursor-pointer"
+                >
+                  <span>Sunucudan Modelleri Listele</span>
+                </button>
+              </div>
+              <input
+                id="profileModelIdInput"
+                type="text"
+                placeholder="google/gemma-4-e4b"
+                class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
+              />
+              <!-- Sunucudan çekilen modeller varsa hızlı seçim kutusu -->
+              <div id="fetchedModelsContainer" class="hidden mt-2">
+                <select
+                  id="fetchedModelsSelect"
+                  class="w-full bg-carbon-950 border border-carbon-700 rounded px-2.5 py-1.5 text-xs text-neutral-300 font-mono focus:outline-none focus:border-neutral-400 cursor-pointer"
+                ></select>
+              </div>
+              <p id="providerModelHint" class="text-[10px] font-mono text-neutral-500 mt-1">Örn: google/gemma-4-e4b, qwen2.5-vl:7b, gemini-2.5-flash, gpt-4o</p>
+            </div>
+
+            <!-- Modal İçi Bağlantı Test Sonucu -->
+            <div id="modalTestResult" class="hidden rounded border border-carbon-700 bg-carbon-950 px-3 py-2 text-xs font-mono"></div>
+          </div>
+
+          <!-- Form Aksiyon Butonları -->
+          <div class="pt-4 mt-5 border-t border-carbon-800 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <button
+                id="testProfileModalBtn"
+                type="button"
+                class="px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 hover:bg-carbon-800 text-neutral-200 border border-carbon-700 transition cursor-pointer"
+              >
+                Test Et
+              </button>
+              <button
+                id="deleteProfileBtn"
+                type="button"
+                class="px-3 py-1.5 rounded text-xs font-mono font-medium bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-900/70 transition cursor-pointer"
+              >
+                Sil
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                id="saveProfileBtn"
+                type="button"
+                class="px-4 py-1.5 rounded text-xs font-mono font-semibold bg-neutral-100 hover:bg-white text-carbon-950 transition cursor-pointer"
+              >
+                Kaydet &amp; Seç
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <script>
-    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        darkMode: true,
+        background: '#111111',
+        primaryColor: '#1e1e1e',
+        primaryTextColor: '#e5e5e5',
+        primaryBorderColor: '#404040',
+        lineColor: '#737373',
+        secondaryColor: '#161616',
+        tertiaryColor: '#0a0a0a'
+      }
+    });
+
+    // Sağlayıcı Şablonları (Provider Presets)
+    const PROVIDER_PRESETS = {
+      lmstudio: {
+        label: 'LM Studio',
+        badge: 'Yerel',
+        baseUrl: 'http://localhost:1234/v1',
+        defaultModel: 'google/gemma-4-e4b',
+        requiresKey: false,
+        hint: 'Örn: google/gemma-4-e4b, qwen/qwen2.5-vl-7b'
+      },
+      ollama: {
+        label: 'Ollama',
+        badge: 'Yerel',
+        baseUrl: 'http://localhost:11434/v1',
+        defaultModel: 'gemma3:12b',
+        requiresKey: false,
+        hint: 'Örn: gemma3:12b, qwen2.5vl:7b, llama3.2-vision'
+      },
+      gemini: {
+        label: 'Google Gemini',
+        badge: 'Bulut API',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+        defaultModel: 'gemini-2.5-flash',
+        requiresKey: true,
+        hint: 'Örn: gemini-2.5-flash, gemini-2.5-pro'
+      },
+      openai: {
+        label: 'OpenAI',
+        badge: 'Bulut API',
+        baseUrl: 'https://api.openai.com/v1',
+        defaultModel: 'gpt-4o-mini',
+        requiresKey: true,
+        hint: 'Örn: gpt-4o-mini, gpt-4o'
+      },
+      anthropic: {
+        label: 'Anthropic',
+        badge: 'Bulut API',
+        baseUrl: 'https://api.anthropic.com/v1',
+        defaultModel: 'claude-3-5-sonnet-latest',
+        requiresKey: true,
+        hint: 'Örn: claude-3-7-sonnet-latest, claude-3-5-sonnet-latest'
+      },
+      openrouter: {
+        label: 'OpenRouter',
+        badge: 'Bulut API',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        defaultModel: 'google/gemini-2.5-flash',
+        requiresKey: true,
+        hint: 'Örn: google/gemini-2.5-flash, qwen/qwen2.5-vl-72b-instruct:free'
+      },
+      custom: {
+        label: 'Özel Sunucu',
+        badge: 'OpenAI Uyumlu',
+        baseUrl: 'http://localhost:8080/v1',
+        defaultModel: 'vision-model',
+        requiresKey: false,
+        hint: 'OpenAI Chat Completions (/v1/chat/completions) uyumlu herhangi bir servis'
+      }
+    };
+
+    const STORAGE_KEY_PROFILES = 'atlasdoc_model_profiles_v1';
+    const STORAGE_KEY_ACTIVE_ID = 'atlasdoc_active_profile_id_v1';
+
+    const DEFAULT_PROFILES = [
+      {
+        id: 'default-lmstudio',
+        name: 'LM Studio — Gemma 4 E4B',
+        provider: 'lmstudio',
+        baseUrl: 'http://localhost:1234/v1',
+        modelName: 'google/gemma-4-e4b',
+        apiKey: ''
+      },
+      {
+        id: 'default-ollama',
+        name: 'Ollama — Yerel Vision',
+        provider: 'ollama',
+        baseUrl: 'http://localhost:11434/v1',
+        modelName: 'gemma3:12b',
+        apiKey: ''
+      },
+      {
+        id: 'default-gemini',
+        name: 'Google Gemini 2.5 Flash',
+        provider: 'gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+        modelName: 'gemini-2.5-flash',
+        apiKey: ''
+      },
+      {
+        id: 'default-openrouter',
+        name: 'OpenRouter — Vision',
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        modelName: 'google/gemini-2.5-flash',
+        apiKey: ''
+      }
+    ];
 
     // DOM Referansları
-    const baseUrlInput = document.getElementById('baseUrlInput');
-    const modelNameInput = document.getElementById('modelNameInput');
+    const activeModelSelect = document.getElementById('activeModelSelect');
+    const activeProviderBadge = document.getElementById('activeProviderBadge');
+    const openModelModalBtn = document.getElementById('openModelModalBtn');
     const dpiInput = document.getElementById('dpiInput');
     const healthCheckBtn = document.getElementById('healthCheckBtn');
     const healthDot = document.getElementById('healthDot');
     const healthBanner = document.getElementById('healthBanner');
     const healthMessage = document.getElementById('healthMessage');
+
+    // Modal DOM Referansları
+    const modelModal = document.getElementById('modelModal');
+    const closeModelModalBtn = document.getElementById('closeModelModalBtn');
+    const profileListContainer = document.getElementById('profileListContainer');
+    const newProfileBtn = document.getElementById('newProfileBtn');
+    const profileFormTitle = document.getElementById('profileFormTitle');
+    const profileFormBadge = document.getElementById('profileFormBadge');
+    const profileProviderInput = document.getElementById('profileProviderInput');
+    const profileNameInput = document.getElementById('profileNameInput');
+    const profileBaseUrlInput = document.getElementById('profileBaseUrlInput');
+    const resetDefaultUrlBtn = document.getElementById('resetDefaultUrlBtn');
+    const profileApiKeyInput = document.getElementById('profileApiKeyInput');
+    const apiKeyRequirementHint = document.getElementById('apiKeyRequirementHint');
+    const toggleApiKeyVisBtn = document.getElementById('toggleApiKeyVisBtn');
+    const profileModelIdInput = document.getElementById('profileModelIdInput');
+    const fetchModelsBtn = document.getElementById('fetchModelsBtn');
+    const fetchedModelsContainer = document.getElementById('fetchedModelsContainer');
+    const fetchedModelsSelect = document.getElementById('fetchedModelsSelect');
+    const providerModelHint = document.getElementById('providerModelHint');
+    const modalTestResult = document.getElementById('modalTestResult');
+    const testProfileModalBtn = document.getElementById('testProfileModalBtn');
+    const deleteProfileBtn = document.getElementById('deleteProfileBtn');
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
 
     const dropZone = document.getElementById('dropZone');
     const pdfFileInput = document.getElementById('pdfFileInput');
@@ -439,6 +766,10 @@
     const jobNotice = document.getElementById('jobNotice');
 
     // Uygulama Durumu (State)
+    let profiles = [];
+    let activeProfileId = '';
+    let editingProfileId = null;
+
     let selectedFile = null;
     let pdfTotalPages = 0;
     let pageMode = 'all'; // 'all' | 'custom'
@@ -450,16 +781,352 @@
     let startTime = null;
     let activeTab = 'raw';
 
+    // --- MODEL PROFİL YÖNETİMİ (localStorage) ---
+    function loadProfilesFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_PROFILES);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            profiles = parsed;
+          }
+        }
+      } catch (_) {}
+
+      if (!profiles.length) {
+        profiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+        saveProfilesToStorage();
+      }
+
+      const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
+      if (savedActive && profiles.some(p => p.id === savedActive)) {
+        activeProfileId = savedActive;
+      } else {
+        activeProfileId = profiles[0].id;
+        localStorage.setItem(STORAGE_KEY_ACTIVE_ID, activeProfileId);
+      }
+    }
+
+    function saveProfilesToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
+        localStorage.setItem(STORAGE_KEY_ACTIVE_ID, activeProfileId);
+      } catch (_) {}
+    }
+
+    function getActiveProfile() {
+      return profiles.find(p => p.id === activeProfileId) || profiles[0];
+    }
+
+    function renderActiveModelDropdown() {
+      activeModelSelect.innerHTML = '';
+      profiles.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        const preset = PROVIDER_PRESETS[p.provider] || PROVIDER_PRESETS.custom;
+        opt.textContent = `${p.name} (${p.modelName})`;
+        if (p.id === activeProfileId) opt.selected = true;
+        activeModelSelect.appendChild(opt);
+      });
+
+      const current = getActiveProfile();
+      if (current) {
+        const preset = PROVIDER_PRESETS[current.provider] || PROVIDER_PRESETS.custom;
+        activeProviderBadge.textContent = preset.label;
+      }
+    }
+
+    activeModelSelect.addEventListener('change', () => {
+      activeProfileId = activeModelSelect.value;
+      saveProfilesToStorage();
+      renderActiveModelDropdown();
+      healthDot.className = 'w-2 h-2 rounded-full bg-neutral-500';
+    });
+
+    function renderModalProfileList() {
+      profileListContainer.innerHTML = '';
+      profiles.forEach(p => {
+        const isSelected = p.id === editingProfileId;
+        const isActive = p.id === activeProfileId;
+        const preset = PROVIDER_PRESETS[p.provider] || PROVIDER_PRESETS.custom;
+
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = isSelected
+          ? 'w-full text-left p-2.5 rounded border border-neutral-400 bg-carbon-850 transition flex flex-col gap-1 cursor-pointer'
+          : 'w-full text-left p-2.5 rounded border border-carbon-800 bg-carbon-900 hover:bg-carbon-850/70 transition flex flex-col gap-1 cursor-pointer';
+
+        const topRow = document.createElement('div');
+        topRow.className = 'flex items-center justify-between gap-2';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'text-xs font-medium text-neutral-100 truncate';
+        titleSpan.textContent = p.name;
+
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = isActive
+          ? 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 text-carbon-950 font-semibold shrink-0'
+          : 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-carbon-800 text-neutral-400 border border-carbon-700 shrink-0';
+        badgeSpan.textContent = isActive ? 'Aktif' : preset.label;
+
+        topRow.appendChild(titleSpan);
+        topRow.appendChild(badgeSpan);
+
+        const bottomRow = document.createElement('div');
+        bottomRow.className = 'text-[11px] font-mono text-neutral-500 truncate';
+        bottomRow.textContent = `${preset.label} · ${p.modelName}`;
+
+        item.appendChild(topRow);
+        item.appendChild(bottomRow);
+
+        item.addEventListener('click', () => {
+          loadProfileIntoForm(p.id);
+        });
+
+        profileListContainer.appendChild(item);
+      });
+    }
+
+    function updateProviderFormHints(providerKey, overwriteUrlAndModel = false) {
+      const preset = PROVIDER_PRESETS[providerKey] || PROVIDER_PRESETS.custom;
+      profileFormBadge.textContent = preset.badge;
+      providerModelHint.textContent = preset.hint;
+      apiKeyRequirementHint.textContent = preset.requiresKey
+        ? 'Zorunlu (Bulut API)'
+        : 'Opsiyonel (Yerel Sunucu)';
+      apiKeyRequirementHint.className = preset.requiresKey
+        ? 'text-[10px] font-mono text-amber-400'
+        : 'text-[10px] font-mono text-neutral-500';
+
+      if (overwriteUrlAndModel) {
+        profileBaseUrlInput.value = preset.baseUrl;
+        profileModelIdInput.value = preset.defaultModel;
+        if (!profileNameInput.value.trim() || profileNameInput.dataset.autoNamed === 'true') {
+          profileNameInput.value = `${preset.label} — ${preset.defaultModel}`;
+          profileNameInput.dataset.autoNamed = 'true';
+        }
+      }
+      fetchedModelsContainer.classList.add('hidden');
+      modalTestResult.classList.add('hidden');
+    }
+
+    function loadProfileIntoForm(profileId) {
+      const target = profiles.find(p => p.id === profileId);
+      if (!target) return;
+      editingProfileId = target.id;
+      profileFormTitle.textContent = 'Profil Düzenle';
+      profileProviderInput.value = target.provider || 'lmstudio';
+      profileNameInput.value = target.name || '';
+      profileNameInput.dataset.autoNamed = 'false';
+      profileBaseUrlInput.value = target.baseUrl || '';
+      profileApiKeyInput.value = target.apiKey || '';
+      profileApiKeyInput.type = 'password';
+      toggleApiKeyVisBtn.textContent = 'Göster';
+      profileModelIdInput.value = target.modelName || '';
+
+      updateProviderFormHints(target.provider, false);
+      deleteProfileBtn.disabled = profiles.length <= 1;
+      deleteProfileBtn.className = profiles.length <= 1
+        ? 'px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 text-neutral-600 border border-carbon-800 cursor-not-allowed'
+        : 'px-3 py-1.5 rounded text-xs font-mono font-medium bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-900/70 transition cursor-pointer';
+
+      renderModalProfileList();
+    }
+
+    function startNewProfileForm() {
+      editingProfileId = null;
+      profileFormTitle.textContent = 'Yeni Model Profili';
+      profileProviderInput.value = 'ollama';
+      profileNameInput.value = '';
+      profileNameInput.dataset.autoNamed = 'true';
+      profileApiKeyInput.value = '';
+      profileApiKeyInput.type = 'password';
+      toggleApiKeyVisBtn.textContent = 'Göster';
+      updateProviderFormHints('ollama', true);
+      deleteProfileBtn.disabled = true;
+      deleteProfileBtn.className = 'px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 text-neutral-600 border border-carbon-800 cursor-not-allowed';
+      renderModalProfileList();
+      profileNameInput.focus();
+    }
+
+    profileNameInput.addEventListener('input', () => {
+      profileNameInput.dataset.autoNamed = 'false';
+    });
+
+    profileProviderInput.addEventListener('change', () => {
+      updateProviderFormHints(profileProviderInput.value, true);
+    });
+
+    resetDefaultUrlBtn.addEventListener('click', () => {
+      const preset = PROVIDER_PRESETS[profileProviderInput.value] || PROVIDER_PRESETS.custom;
+      profileBaseUrlInput.value = preset.baseUrl;
+    });
+
+    toggleApiKeyVisBtn.addEventListener('click', () => {
+      if (profileApiKeyInput.type === 'password') {
+        profileApiKeyInput.type = 'text';
+        toggleApiKeyVisBtn.textContent = 'Gizle';
+      } else {
+        profileApiKeyInput.type = 'password';
+        toggleApiKeyVisBtn.textContent = 'Göster';
+      }
+    });
+
+    openModelModalBtn.addEventListener('click', () => {
+      loadProfileIntoForm(activeProfileId);
+      modelModal.classList.remove('hidden');
+    });
+
+    closeModelModalBtn.addEventListener('click', () => {
+      modelModal.classList.add('hidden');
+    });
+
+    modelModal.addEventListener('click', (e) => {
+      if (e.target === modelModal) {
+        modelModal.classList.add('hidden');
+      }
+    });
+
+    newProfileBtn.addEventListener('click', startNewProfileForm);
+
+    // Sunucudan Modelleri Çekme ve Test Etme (Modal içi)
+    async function testOrFetchModalProfile(populateSelect = false) {
+      const provider = profileProviderInput.value;
+      const base_url = profileBaseUrlInput.value.trim();
+      const model_name = profileModelIdInput.value.trim() || 'model';
+      const api_key = profileApiKeyInput.value.trim();
+
+      modalTestResult.classList.remove('hidden');
+      modalTestResult.className = 'rounded border border-carbon-700 bg-carbon-950 px-3 py-2 text-xs font-mono text-neutral-400';
+      modalTestResult.textContent = 'Sunucu sorgulanıyor...';
+
+      try {
+        const res = await fetch('/api/health', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, base_url, model_name, api_key })
+        });
+        const data = await res.json();
+
+        if (Array.isArray(data.available_models) && data.available_models.length > 0) {
+          fetchedModelsSelect.innerHTML = '';
+          const placeholderOpt = document.createElement('option');
+          placeholderOpt.value = '';
+          placeholderOpt.textContent = `Sunucuda bulunan modeller (${data.available_models.length}) — Seçmek için tıklayın`;
+          fetchedModelsSelect.appendChild(placeholderOpt);
+
+          data.available_models.forEach(mId => {
+            const opt = document.createElement('option');
+            opt.value = mId;
+            opt.textContent = mId;
+            if (mId === profileModelIdInput.value.trim()) opt.selected = true;
+            fetchedModelsSelect.appendChild(opt);
+          });
+          fetchedModelsContainer.classList.remove('hidden');
+        } else if (populateSelect) {
+          fetchedModelsContainer.classList.add('hidden');
+        }
+
+        if (data.ok && data.model_found) {
+          modalTestResult.className = 'rounded border border-emerald-800/80 bg-carbon-950 px-3 py-2 text-xs font-mono text-emerald-400';
+        } else if (data.ok) {
+          modalTestResult.className = 'rounded border border-amber-800/80 bg-carbon-950 px-3 py-2 text-xs font-mono text-amber-400';
+        } else {
+          modalTestResult.className = 'rounded border border-red-800/80 bg-carbon-950 px-3 py-2 text-xs font-mono text-red-400';
+        }
+        modalTestResult.textContent = data.message;
+      } catch (err) {
+        modalTestResult.className = 'rounded border border-red-800/80 bg-carbon-950 px-3 py-2 text-xs font-mono text-red-400';
+        modalTestResult.textContent = 'Bağlantı hatası: ' + err.message;
+      }
+    }
+
+    fetchModelsBtn.addEventListener('click', () => testOrFetchModalProfile(true));
+    testProfileModalBtn.addEventListener('click', () => testOrFetchModalProfile(false));
+
+    fetchedModelsSelect.addEventListener('change', () => {
+      if (fetchedModelsSelect.value) {
+        profileModelIdInput.value = fetchedModelsSelect.value;
+        const preset = PROVIDER_PRESETS[profileProviderInput.value] || PROVIDER_PRESETS.custom;
+        if (profileNameInput.dataset.autoNamed === 'true') {
+          profileNameInput.value = `${preset.label} — ${fetchedModelsSelect.value}`;
+        }
+      }
+    });
+
+    saveProfileBtn.addEventListener('click', () => {
+      const provider = profileProviderInput.value;
+      const preset = PROVIDER_PRESETS[provider] || PROVIDER_PRESETS.custom;
+      const baseUrl = profileBaseUrlInput.value.trim() || preset.baseUrl;
+      const modelName = profileModelIdInput.value.trim();
+      const apiKey = profileApiKeyInput.value.trim();
+      const name = profileNameInput.value.trim() || `${preset.label} — ${modelName || preset.defaultModel}`;
+
+      if (!modelName) {
+        modalTestResult.classList.remove('hidden');
+        modalTestResult.className = 'rounded border border-red-800/80 bg-carbon-950 px-3 py-2 text-xs font-mono text-red-400';
+        modalTestResult.textContent = 'Lütfen bir Model Kimliği (Model ID) girin.';
+        return;
+      }
+
+      if (editingProfileId) {
+        const idx = profiles.findIndex(p => p.id === editingProfileId);
+        if (idx !== -1) {
+          profiles[idx] = {
+            ...profiles[idx],
+            name,
+            provider,
+            baseUrl,
+            modelName,
+            apiKey
+          };
+          activeProfileId = editingProfileId;
+        }
+      } else {
+        const newId = 'profile-' + Date.now();
+        profiles.push({
+          id: newId,
+          name,
+          provider,
+          baseUrl,
+          modelName,
+          apiKey
+        });
+        activeProfileId = newId;
+        editingProfileId = newId;
+      }
+
+      saveProfilesToStorage();
+      renderActiveModelDropdown();
+      renderModalProfileList();
+      modelModal.classList.add('hidden');
+    });
+
+    deleteProfileBtn.addEventListener('click', () => {
+      if (!editingProfileId || profiles.length <= 1) return;
+      profiles = profiles.filter(p => p.id !== editingProfileId);
+      if (activeProfileId === editingProfileId) {
+        activeProfileId = profiles[0].id;
+      }
+      saveProfilesToStorage();
+      renderActiveModelDropdown();
+      loadProfileIntoForm(activeProfileId);
+    });
+
+    // Sayfa açılışında profilleri yükle
+    loadProfilesFromStorage();
+    renderActiveModelDropdown();
+
     // 1. Sayfa Seçim Modu (Tüm Sayfalar / Özel Aralık)
     function setPageMode(mode) {
       pageMode = mode;
       if (mode === 'all') {
-        modeAllPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium bg-indigo-600 text-white transition cursor-pointer';
-        modeCustomPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer';
+        modeAllPagesBtn.className = 'px-2.5 py-1 rounded-sm font-medium bg-neutral-200 text-carbon-950 transition cursor-pointer';
+        modeCustomPagesBtn.className = 'px-2.5 py-1 rounded-sm font-medium text-neutral-400 hover:text-neutral-200 transition cursor-pointer';
         customRangeContainer.classList.add('hidden');
       } else {
-        modeCustomPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium bg-indigo-600 text-white transition cursor-pointer';
-        modeAllPagesBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer';
+        modeCustomPagesBtn.className = 'px-2.5 py-1 rounded-sm font-medium bg-neutral-200 text-carbon-950 transition cursor-pointer';
+        modeAllPagesBtn.className = 'px-2.5 py-1 rounded-sm font-medium text-neutral-400 hover:text-neutral-200 transition cursor-pointer';
         customRangeContainer.classList.remove('hidden');
         pageRangesInput.focus();
       }
@@ -470,6 +1137,7 @@
     modeCustomPagesBtn.addEventListener('click', () => setPageMode('custom'));
     pageRangesInput.addEventListener('input', updateRangePreview);
 
+    // İstemci tarafında sayfa aralığı önizleme hesaplaması
     function parseClientSideRanges(str, maxPages) {
       if (!str || !str.trim()) return { valid: true, pages: [] };
       const limit = maxPages > 0 ? maxPages : 9999;
@@ -514,7 +1182,7 @@
 
       const raw = pageRangesInput.value.trim();
       if (!raw) {
-        rangeHelperText.className = 'text-slate-400';
+        rangeHelperText.className = 'text-neutral-500';
         rangeHelperText.textContent = 'Boş bırakılırsa tüm sayfalar işlenir. Örn: 1-5, 8, 12-15';
         startBtnLabel.textContent = pdfTotalPages > 0
           ? `Dönüştürmeyi Başlat (${pdfTotalPages} Sayfa)`
@@ -525,7 +1193,7 @@
 
       const parsed = parseClientSideRanges(raw, pdfTotalPages);
       if (!parsed.valid) {
-        rangeHelperText.className = 'text-rose-400 font-medium';
+        rangeHelperText.className = 'text-red-400 font-medium';
         rangeHelperText.textContent = parsed.error;
         startBtn.disabled = true;
       } else {
@@ -533,7 +1201,7 @@
         const previewList = parsed.pages.length <= 8
           ? parsed.pages.join(', ')
           : `${parsed.pages.slice(0, 6).join(', ')} ... ${parsed.pages[parsed.pages.length - 1]}`;
-        rangeHelperText.className = 'text-emerald-400 font-medium';
+        rangeHelperText.className = 'text-neutral-300 font-medium';
         rangeHelperText.textContent = `Seçilen (${count} sayfa): [${previewList}]`;
         startBtnLabel.textContent = `Seçili ${count} Sayfayı Dönüştür`;
         if (selectedFile) startBtn.disabled = false;
@@ -544,13 +1212,13 @@
     function switchTab(tab) {
       activeTab = tab;
       if (tab === 'raw') {
-        tabRawBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow cursor-pointer';
-        tabPreviewBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 cursor-pointer';
+        tabRawBtn.className = 'px-3.5 py-1.5 rounded-sm text-xs font-medium transition bg-neutral-200 text-carbon-950 cursor-pointer';
+        tabPreviewBtn.className = 'px-3.5 py-1.5 rounded-sm text-xs font-medium transition text-neutral-400 hover:text-neutral-200 cursor-pointer';
         rawPanel.classList.remove('hidden');
         previewPanel.classList.add('hidden');
       } else {
-        tabPreviewBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow cursor-pointer';
-        tabRawBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 cursor-pointer';
+        tabPreviewBtn.className = 'px-3.5 py-1.5 rounded-sm text-xs font-medium transition bg-neutral-200 text-carbon-950 cursor-pointer';
+        tabRawBtn.className = 'px-3.5 py-1.5 rounded-sm text-xs font-medium transition text-neutral-400 hover:text-neutral-200 cursor-pointer';
         previewPanel.classList.remove('hidden');
         rawPanel.classList.add('hidden');
         renderLivePreview();
@@ -591,7 +1259,7 @@
     async function renderLivePreview() {
       const combined = getCombinedMarkdown();
       if (!combined.trim()) {
-        previewPanel.innerHTML = '<p class="text-slate-500 text-sm italic">Henüz görüntülenecek Markdown çıktısı yok.</p>';
+        previewPanel.innerHTML = '<p class="text-neutral-600 text-xs font-mono">Henüz görüntülenecek Markdown çıktısı yok.</p>';
         return;
       }
 
@@ -607,7 +1275,7 @@
       mermaidBlocks.forEach((block) => {
         const pre = block.parentElement;
         const container = document.createElement('div');
-        container.className = 'mermaid my-4 flex justify-center bg-slate-900/80 p-4 rounded-xl border border-slate-800';
+        container.className = 'mermaid my-4 flex justify-center bg-carbon-900 p-4 rounded border border-carbon-800';
         container.textContent = block.textContent;
         pre.replaceWith(container);
       });
@@ -622,9 +1290,12 @@
       previewPanel.scrollTop = previewPanel.scrollHeight;
     }
 
-    // 4. LM Studio Bağlantı Testi (Health Check)
+    // 4. Aktif Profil Bağlantı Testi (Health Check)
     async function runHealthCheck() {
-      healthDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+      const active = getActiveProfile();
+      if (!active) return;
+
+      healthDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
       healthCheckBtn.disabled = true;
 
       try {
@@ -632,28 +1303,30 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            base_url: baseUrlInput.value,
-            model_name: modelNameInput.value
+            provider: active.provider,
+            base_url: active.baseUrl,
+            model_name: active.modelName,
+            api_key: active.apiKey || ''
           })
         });
         const data = await res.json();
 
         healthBanner.classList.remove('hidden');
         if (data.ok && data.model_found) {
-          healthDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
-          healthBanner.className = 'border-t border-emerald-500/30 bg-emerald-950/40 text-emerald-300 px-4 py-1.5 text-xs';
+          healthDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+          healthBanner.className = 'border-t border-carbon-800 bg-carbon-950 text-emerald-400 px-5 py-2 text-xs font-mono';
         } else if (data.ok) {
           healthDot.className = 'w-2 h-2 rounded-full bg-amber-400';
-          healthBanner.className = 'border-t border-amber-500/30 bg-amber-950/40 text-amber-300 px-4 py-1.5 text-xs';
+          healthBanner.className = 'border-t border-carbon-800 bg-carbon-950 text-amber-400 px-5 py-2 text-xs font-mono';
         } else {
-          healthDot.className = 'w-2 h-2 rounded-full bg-rose-500';
-          healthBanner.className = 'border-t border-rose-500/30 bg-rose-950/40 text-rose-300 px-4 py-1.5 text-xs';
+          healthDot.className = 'w-2 h-2 rounded-full bg-red-500';
+          healthBanner.className = 'border-t border-carbon-800 bg-carbon-950 text-red-400 px-5 py-2 text-xs font-mono';
         }
         healthMessage.textContent = data.message;
       } catch (err) {
-        healthDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        healthDot.className = 'w-2 h-2 rounded-full bg-red-500';
         healthBanner.classList.remove('hidden');
-        healthBanner.className = 'border-t border-rose-500/30 bg-rose-950/40 text-rose-300 px-4 py-1.5 text-xs';
+        healthBanner.className = 'border-t border-carbon-800 bg-carbon-950 text-red-400 px-5 py-2 text-xs font-mono';
         healthMessage.textContent = 'Sunucuya ulaşılamadı: ' + err.message;
       } finally {
         healthCheckBtn.disabled = false;
@@ -685,7 +1358,7 @@
           pdfTotalPages = info.total_pages || 0;
           pdfTotalPagesBadge.textContent = `Toplam: ${pdfTotalPages} sayfa`;
           pdfTotalPagesBadge.classList.remove('hidden');
-          selectedFileSize.textContent = `${sizeMB} MB • Toplam ${pdfTotalPages} sayfa`;
+          selectedFileSize.textContent = `${sizeMB} MB · Toplam ${pdfTotalPages} sayfa`;
           pageRangesInput.placeholder = `Örn: 1-${Math.min(5, pdfTotalPages)}, ${Math.min(8, pdfTotalPages)} (Toplam ${pdfTotalPages} syf)`;
         } else if (res.status === 413) {
           const err = await res.json().catch(() => ({}));
@@ -713,16 +1386,16 @@
 
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('border-indigo-500', 'bg-indigo-950/20');
+      dropZone.classList.add('border-neutral-300', 'bg-carbon-850');
     });
 
     dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      dropZone.classList.remove('border-neutral-300', 'bg-carbon-850');
     });
 
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      dropZone.classList.remove('border-neutral-300', 'bg-carbon-850');
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
         handleFileSelect(e.dataTransfer.files[0]);
       }
@@ -748,6 +1421,8 @@
     // 7. SSE Akışı ile PDF Dönüştürme İşlemi
     async function startConversion() {
       if (!selectedFile) return;
+      const active = getActiveProfile();
+      if (!active) return;
 
       pageResults = [];
       failedPages = [];
@@ -767,8 +1442,10 @@
 
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('base_url', baseUrlInput.value.trim());
-      formData.append('model_name', modelNameInput.value.trim());
+      formData.append('provider', active.provider || 'lmstudio');
+      formData.append('base_url', active.baseUrl || '');
+      formData.append('model_name', active.modelName || '');
+      formData.append('api_key', active.apiKey || '');
       formData.append('dpi', dpiInput.value || '200');
       formData.append('page_ranges', effectiveRanges);
 
@@ -834,8 +1511,8 @@
       }
       jobNotice.textContent = parts.join(' · ');
       jobNotice.className = failedPages.length
-        ? 'mt-2 text-[11px] leading-relaxed text-rose-300'
-        : 'mt-2 text-[11px] leading-relaxed text-amber-300';
+        ? 'mt-2 text-[11px] font-mono leading-relaxed text-red-400'
+        : 'mt-2 text-[11px] font-mono leading-relaxed text-amber-300';
     }
 
     function completionStatus(event) {
@@ -944,7 +1621,7 @@
       if (!text) return;
       const baseName = selectedFile
         ? selectedFile.name.replace(/\.pdf$/i, '')
-        : 'AtlasDoc';
+        : 'dokuman';
       const rangeSuffix = (pageMode === 'custom' && pageRangesInput.value.trim())
         ? `_sayfa_${pageRangesInput.value.trim().replace(/[^0-9a-zA-Z-]+/g, '_')}`
         : '';

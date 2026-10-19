@@ -1,27 +1,47 @@
 # AtlasDoc — Vision-First PDF to Markdown
 
-Yerel çalışan **LM Studio** (vision LLM) ve **PyMuPDF** kullanarak PDF dokümanlarını yüksek doğrulukla, revizyon/üstü çizili metinleri arındırarak saf **Markdown (`.md`)** formatına dönüştüren web uygulaması.
+Yerel çalışan (**LM Studio**, **Ollama**) veya bulut tabanlı (**Google Gemini**, **OpenAI**, **Anthropic**, **OpenRouter** vb.) Vision LLM modellerini ve **PyMuPDF** kütüphanesini kullanarak PDF dokümanlarını yüksek doğrulukla, revizyon/üstü çizili metinleri arındırarak saf **Markdown (`.md`)** formatına dönüştüren web uygulaması.
 
 ## Özellikler
 
+- **Çoklu AI Vision Sağlayıcı Desteği:**
+  - **Yerel (Local):** LM Studio (`http://localhost:1234/v1`) ve Ollama (`http://localhost:11434/v1`).
+  - **Bulut (Cloud API):** Google Gemini, OpenAI, Anthropic, OpenRouter ve özel OpenAI-uyumlu uç noktalar.
+- **Model Profil Yönetimi:** Arayüzdeki **Modeller** paneli üzerinden birden fazla yerel veya bulut model profili tanımlanabilir, sunucudaki mevcut modeller tek tıkla listelenebilir (`Sunucudan Modelleri Listele`), bağlantı testi yapılabilir ve üst bardaki seçici ile profiller arasında anında geçiş yapılabilir. Profiller ve API anahtarları sunucuya kaydedilmez; yalnızca tarayıcının `localStorage` alanında saklanır.
 - **In-Memory PDF Render (`PyMuPDF`):** Dış bağımlılık (Poppler vb.) gerektirmeden sayfaları bellekte PNG formatına dönüştürür. Render ve üstü çizili maskeleme event loop dışında çalışır.
 - **Vektör Seviyesinde Üstü Çizili (Strikethrough) Temizliği:** PDF içindeki üstü çizili (silinmiş/iptal edilmiş) revizyon metinlerini görsel oluşturulmadan önce koordinat bazlı tespit edip beyazlatır; altı çizili (yeni eklenen) metinleri ve tabloları korur. Aynı ifade yürürlükteki metinde tekrar geçebileceği için LLM çıktısından ayrıca silinmez.
 - **Sliding Window (Bağlam Koruma):** Ardışık sayfa geçişlerinde cümle ve tablo bölünmelerini önlemek için bir önceki sayfanın son 15 satırını bağlam olarak aktarır.
 - **Esnek Sayfa & Aralık Seçimi:** Tüm sayfaları veya `1-5, 8, 12-15, 20-` gibi özel sayfa aralıklarını işleyebilir.
 - **Gerçek Zamanlı Akış (SSE):** Sayfa önizlemesi ve üretilen Markdown çıktısı Server-Sent Events (SSE) ile sayfa sayfa arayüze akar (`Raw Markdown` ve `marked` + `mermaid` destekli `Live Preview`). Önizleme DOMPurify ile sanitize edilir.
-- **Kesilen ve başarısız sayfalar:** Token sınırında kesilen sayfalar ve zaman aşımı / render hatası yaşayan sayfalar iş sonunda listelenir. Zaman aşımı tek sayfayı düşürür, işe devam edilir.
+- **Kesilen ve Başarısız Sayfalar:** Token sınırında kesilen sayfalar ve zaman aşımı / render hatası yaşayan sayfalar iş sonunda listelenir. Zaman aşımı tek sayfayı düşürür, işe devam edilir.
 
-## LM Studio kurulumu
+## Model Sağlayıcı Kurulumu
 
-1. [LM Studio](https://lmstudio.ai/) uygulamasını kurun.
-2. Bir **vision** (görüntü girdisi olan) model indirin. Bu projenin arayüzdeki varsayılan adı `google/gemma-4-e4b` şeklindedir. LM Studio'da görünen kimlik kurulumdan kuruluma değişir; Hugging Face karşılığı `google/gemma-4-E4B-it`, GGUF paketi ise çoğunlukla `lmstudio-community/gemma-4-E4B-it-GGUF` altındadır. Belge ve tablo için `Qwen/Qwen3-VL-8B-Instruct` (`lmstudio-community/Qwen3-VL-8B-Instruct-GGUF`) de uygun bir adaydır.
-3. LM Studio'da **Local Server** (Developer sekmesi) bölümünü açın ve sunucuyu başlatın. Varsayılan adres `http://localhost:1234` olur; OpenAI uyumlu uç `http://localhost:1234/v1` şeklindedir.
-4. Yüklü modelin kimliğini sunucu arayüzünden veya `GET http://localhost:1234/v1/models` yanıtındaki `id` alanından kopyalayın. AtlasDoc sağlık kontrolü bu kimliği alt dizgi olarak arar; convert isteği ise yazdığınız kimliği olduğu gibi gönderir. Kimlik listede yoksa dönüşüm 404 alabilir.
-5. AtlasDoc arayüzündeki **Vision Model** kutusuna bu kimliği yapıştırın. **Bağlantı Testi** yeşilse modele istek gidebilir.
+Üst bardaki **Modeller** butonuna tıklayarak **AI Vision Model Profilleri** penceresinden dilediğiniz sağlayıcıyı yapılandırabilirsiniz:
 
-GPU şart değildir; hız ve görüntü kalitesi tamamen LM Studio'daki modele bağlıdır. Bu depo modeli çalıştırmaz.
+### 1. LM Studio (Yerel)
+1. [LM Studio](https://lmstudio.ai/) uygulamasını kurun ve görüntü destekli (vision) bir model indirin (örn. `google/gemma-4-e4b` veya `Qwen/Qwen3-VL-8B-Instruct`).
+2. **Local Server** sekmesinden sunucuyu başlatın (varsayılan: `http://localhost:1234/v1`).
+3. AtlasDoc **Modeller** penceresinde `LM Studio (Yerel)` profilini seçin, **Sunucudan Modelleri Listele** butonuna tıklayarak yüklü modeli seçin ve **Kaydet & Seç** deyin.
 
-## Kurulum ve çalıştırma
+### 2. Ollama (Yerel)
+1. [Ollama](https://ollama.com/) uygulamasını kurun ve bir vision modeli çekin:
+   ```bash
+   ollama pull gemma3:4b
+   # veya
+   ollama pull qwen2.5vl:7b
+   ```
+2. AtlasDoc **Modeller** penceresinde `Ollama (Yerel)` sağlayıcısını seçin (varsayılan adres: `http://localhost:11434/v1`). **Sunucudan Modelleri Listele** ile modeli seçip kaydedin.
+
+### 3. Bulut API Sağlayıcıları (Gemini, OpenAI, Anthropic, OpenRouter)
+1. **Modeller** penceresinde **+ Yeni Ekle** butonuna tıklayın ve ilgili sağlayıcıyı seçin:
+   - **Google Gemini:** `https://generativelanguage.googleapis.com/v1beta/openai` (Örn: `gemini-2.5-flash`)
+   - **OpenAI:** `https://api.openai.com/v1` (Örn: `gpt-4o-mini`, `gpt-4o`)
+   - **Anthropic:** `https://api.anthropic.com/v1` (Örn: `claude-sonnet-4-20250514`)
+   - **OpenRouter:** `https://openrouter.ai/api/v1` (Örn: `google/gemini-2.5-flash`)
+2. **API Anahtarı** alanına sağlayıcıdan aldığınız anahtarı girin, **Test Et** ile doğrulayın ve **Kaydet & Seç** butonuna basın.
+
+## Kurulum ve Çalıştırma
 
 ```bash
 pip install -r requirements.txt
@@ -32,7 +52,7 @@ Tarayıcıdan `http://127.0.0.1:8000` adresine giderek kullanabilirsiniz. Sunucu
 
 ## Yapılandırma
 
-Arayüzden değişenler: LM Studio API adresi, model kimliği, DPI (sunucu 72–400 aralığına sıkıştırır) ve sayfa aralığı.
+Arayüzden değişenler: Aktif model profili (sağlayıcı, API adresi, API anahtarı, model kimliği), DPI (sunucu 72–400 aralığına sıkıştırır) ve sayfa aralığı.
 
 Sunucu süreç ortam değişkenleri:
 
@@ -52,7 +72,7 @@ ATLASDOC_TIMEOUT=180 ATLASDOC_MAX_RETRIES=0 ATLASDOC_MAX_TOKENS=4096 \
 
 ## Testler
 
-GPU veya LM Studio gerekmez. LLM çağrıları sahte istemciyle yürür.
+GPU veya harici model sunucusu gerekmez. LLM çağrıları sahte istemciyle yürür.
 
 ```bash
 pip install -r requirements-dev.txt
