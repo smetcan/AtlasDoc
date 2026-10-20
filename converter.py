@@ -486,10 +486,18 @@ def resolve_provider_config(
     label = cfg["label"]
     requires_key = bool(cfg["requires_key"])
 
-    if not (base_url or "").strip() and norm_provider == "lmstudio":
+    env_url = (
+        os.environ.get("ATLASDOC_BASE_URL", "").strip()
+        or os.environ.get("LMSTUDIO_BASE_URL", "").strip()
+    )
+    if (base_url or "").strip():
+        effective_url = base_url.strip()
+    elif norm_provider == "lmstudio":
         effective_url = default_base_url()
+    elif env_url:
+        effective_url = env_url
     else:
-        effective_url = (base_url or "").strip() or cfg["base_url"]
+        effective_url = cfg["base_url"]
     # Ollama kullanıcıları bazen /v1 eklemeden http://localhost:11434 yazar
     if norm_provider == "ollama" and not effective_url.rstrip("/").endswith("/v1"):
         effective_url = effective_url.rstrip("/") + "/v1"

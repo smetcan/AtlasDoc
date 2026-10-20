@@ -7,7 +7,12 @@ import sys
 from pathlib import Path
 
 from app import max_upload_bytes
-from converter import default_base_url, default_model_name, default_provider, process_pdf_stream
+from converter import (
+    default_model_name,
+    default_provider,
+    process_pdf_stream,
+    resolve_provider_config,
+)
 
 
 def combine_markdown(pages, separators: bool) -> str:
@@ -47,10 +52,14 @@ def _convert(args) -> int:
         )
         return 1
 
-    base_url = (args.base_url or "").strip() or default_base_url()
-    model_name = (args.model or "").strip() or default_model_name()
     provider = (args.provider or "").strip() or default_provider()
     api_key = args.api_key if args.api_key is not None else os.environ.get("ATLASDOC_API_KEY", "")
+    _, base_url, _, _ = resolve_provider_config(
+        provider=provider,
+        base_url=(args.base_url or "").strip(),
+        api_key=api_key,
+    )
+    model_name = (args.model or "").strip() or default_model_name()
     dpi = max(72, min(400, int(args.dpi)))
 
     async def _run():

@@ -107,6 +107,32 @@ class TestConvertCommand:
         assert code == 0
         assert seen["base_url"] == "http://lmstudio.example/v1"
 
+    def test_non_lmstudio_provider_uses_provider_default_base_url(self, tmp_path, monkeypatch):
+        source = tmp_path / "in.pdf"
+        _write_pdf(source)
+        output = tmp_path / "out.md"
+        seen = {}
+
+        async def fake(**kwargs):
+            seen.update(kwargs)
+            yield {"type": "page_done", "page": 1, "markdown": "ok"}
+            yield {"type": "complete", "ok_pages": [1], "failed_pages": [], "truncated_pages": []}
+
+        monkeypatch.setattr("atlasdoc.cli.process_pdf_stream", fake)
+        monkeypatch.delenv("ATLASDOC_BASE_URL", raising=False)
+        monkeypatch.delenv("LMSTUDIO_BASE_URL", raising=False)
+
+        code = main(["convert", str(source), "-o", str(output), "--provider", "ollama"])
+        assert code == 0
+        assert seen["provider"] == "ollama"
+        assert seen["base_url"] == "http://localhost:11434/v1"
+
+        seen.clear()
+        code = main(["convert", str(source), "-o", str(output), "--provider", "gemini", "--api-key", "test-key"])
+        assert code == 0
+        assert seen["provider"] == "gemini"
+        assert seen["base_url"] == "https://generativelanguage.googleapis.com/v1beta/openai"
+
     def test_failed_page_still_writes_and_exits_nonzero(self, tmp_path, monkeypatch):
         source = tmp_path / "in.pdf"
         _write_pdf(source)

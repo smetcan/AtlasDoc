@@ -12,6 +12,7 @@ from converter import (
     default_provider,
     get_pdf_page_count,
     process_pdf_stream,
+    resolve_provider_config,
 )
 
 app = FastAPI(
@@ -110,10 +111,16 @@ async def public_config():
 
 @app.post("/api/health")
 async def health_check(payload: HealthCheckRequest):
+    eff_provider = payload.provider.strip() or default_provider()
+    _, eff_base_url, _, _ = resolve_provider_config(
+        provider=eff_provider,
+        base_url=payload.base_url.strip(),
+        api_key=payload.api_key.strip(),
+    )
     result = await check_lm_studio_health(
-        base_url=payload.base_url.strip() or default_base_url(),
+        base_url=eff_base_url,
         model_name=payload.model_name.strip() or default_model_name(),
-        provider=payload.provider.strip() or default_provider(),
+        provider=eff_provider,
         api_key=payload.api_key.strip(),
     )
     return result
@@ -159,13 +166,19 @@ async def convert_pdf(
         raise HTTPException(status_code=400, detail="Yüklenen PDF dosyası boş.")
 
     async def sse_event_generator():
+        eff_provider = provider.strip() or default_provider()
+        _, eff_base_url, _, _ = resolve_provider_config(
+            provider=eff_provider,
+            base_url=base_url.strip(),
+            api_key=api_key.strip(),
+        )
         async for event in process_pdf_stream(
             pdf_bytes=pdf_bytes,
-            base_url=base_url.strip() or default_base_url(),
+            base_url=eff_base_url,
             model_name=model_name.strip() or default_model_name(),
             dpi=safe_dpi,
             page_ranges=page_ranges.strip(),
-            provider=provider.strip() or default_provider(),
+            provider=eff_provider,
             api_key=api_key.strip(),
         ):
             if await request.is_disconnected():
