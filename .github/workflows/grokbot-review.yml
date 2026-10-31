@@ -1,0 +1,25 @@
+name: Grok Bot push review
+on:
+  push:
+    branches: ['**']
+permissions: {}
+jobs:
+  notify:
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Notify Grok Bot
+        env:
+          URL: ${{ secrets.GROKBOT_WEBHOOK_URL }}
+          KEY: ${{ secrets.GROKBOT_WEBHOOK_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "Grok Bot secret'ları yok, atlanıyor."; exit 0; fi
+          jq '{repo: .repository.full_name, branch: (.ref | sub("^refs/heads/"; "")),
+               before, after, pusher: .pusher.name, compare,
+               commits: [.commits[]? | {id, message: (.message | .[0:300]), author: .author.username}]}' \
+            "$GITHUB_EVENT_PATH" \
+          | curl -fsS --max-time 20 -X POST "$URL" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $KEY" \
+              --data-binary @-
