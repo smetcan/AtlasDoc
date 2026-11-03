@@ -348,6 +348,12 @@ class TestProcessPdfStream:
         assert g_key == "AIzaTestKey"
         assert g_req is True
 
+        d_label, d_url, d_key, d_req = resolve_provider_config("deepseek", "", "sk-deepseek")
+        assert d_label == "DeepSeek"
+        assert d_url == "https://api.deepseek.com"
+        assert d_key == "sk-deepseek"
+        assert d_req is True
+
     def test_health_check_rejects_missing_cloud_key(self):
         res = asyncio.run(
             check_provider_health(

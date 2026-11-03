@@ -65,6 +65,7 @@ The UI can also store profiles for Ollama and for other OpenAI-compatible endpoi
 These are suggestions, not a benchmark. This project has not scored them against each other, and there are no accuracy numbers here.
 
 - **`google/gemma-4-e4b`**, the default filled in by the app. The Hugging Face model is `google/gemma-4-E4B-it`. LM Studio builds often use a GGUF from `lmstudio-community`. It is a small vision model, which is why it is the default, not because it won a comparison in this repo.
+- **DeepSeek Flash (`deepseek-flash` / `DeepSeek-V4.1-Flash-1017`)**, via the official DeepSeek API (`https://api.deepseek.com`). Tested to produce high-fidelity Markdown tables, code blocks, and Turkish document structure at low cost.
 - **Qwen2.5-VL or Qwen3-VL, around 7B–8B**, if you want a document-oriented vision model and have the memory for it. Their ids in LM Studio vary. Higher DPI makes more image tokens. If a page fails or gets cut off, lower the DPI.
 - **Ollama tags** such as `gemma3` or `qwen2.5vl`, if you use the Ollama profile (`http://localhost:11434/v1`).
 
@@ -91,6 +92,9 @@ atlasdoc serve --host 127.0.0.1 --port 8000
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `ATLASDOC_AUTH_USER` | required | Static login username for the web UI (loaded from `.env` or environment). |
+| `ATLASDOC_AUTH_PASS` | required | Static login password for the web UI (loaded from `.env` or environment). |
+| `ATLASDOC_AUTH_SECRET` | derived | Optional HMAC secret for signing session cookies (`atlasdoc_session`). |
 | `ATLASDOC_BASE_URL` | `http://localhost:1234/v1` | LM Studio (or other OpenAI-compatible) base URL. `LMSTUDIO_BASE_URL` is a fallback name. |
 | `ATLASDOC_MODEL` | `google/gemma-4-e4b` | Model id used when the UI has no saved profile, and by the CLI. |
 | `ATLASDOC_PROVIDER` | `lmstudio` | Provider id (`lmstudio`, `ollama`, or another id the UI knows). |

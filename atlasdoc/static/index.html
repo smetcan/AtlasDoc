@@ -114,8 +114,8 @@
           />
         </div>
 
-        <!-- Bağlantı Test Butonu -->
-        <div class="flex flex-col justify-end">
+        <!-- Bağlantı Test Butonu & Çıkış -->
+        <div class="flex items-end gap-2">
           <button
             id="healthCheckBtn"
             type="button"
@@ -123,6 +123,15 @@
           >
             <span id="healthDot" class="w-2 h-2 rounded-full bg-neutral-500"></span>
             <span>Bağlantı Testi</span>
+          </button>
+
+          <button
+            id="logoutBtn"
+            type="button"
+            title="Oturumu Kapat"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-medium bg-carbon-850 hover:bg-carbon-800 text-neutral-400 hover:text-neutral-200 border border-carbon-700 transition cursor-pointer"
+          >
+            <span>Çıkış</span>
           </button>
         </div>
       </div>
@@ -384,7 +393,7 @@
       <div class="border-b border-carbon-800 px-5 py-3.5 flex items-center justify-between bg-carbon-950">
         <div>
           <h2 class="text-xs font-mono font-semibold uppercase tracking-wider text-neutral-100">AI Vision Model Profilleri</h2>
-          <p class="text-[11px] font-mono text-neutral-500 mt-0.5">Yerel (LM Studio, Ollama) ve bulut (Gemini, OpenAI, Anthropic, OpenRouter) modelleri tanımlayın</p>
+          <p class="text-[11px] font-mono text-neutral-500 mt-0.5">Yerel (LM Studio, Ollama) ve bulut (DeepSeek, Gemini, OpenAI, Anthropic, OpenRouter) modelleri tanımlayın</p>
         </div>
         <button id="closeModelModalBtn" type="button" class="text-neutral-500 hover:text-neutral-200 px-2 py-1 text-sm font-mono cursor-pointer">✕</button>
       </div>
@@ -427,6 +436,7 @@
               >
                 <option value="lmstudio">LM Studio (Yerel — OpenAI Uyumlu)</option>
                 <option value="ollama">Ollama (Yerel — OpenAI Uyumlu)</option>
+                <option value="deepseek">DeepSeek API</option>
                 <option value="gemini">Google Gemini API</option>
                 <option value="openai">OpenAI API</option>
                 <option value="anthropic">Anthropic (Claude) API</option>
@@ -552,6 +562,61 @@
     </div>
   </div>
 
+  <!-- GİRİŞ (LOGIN) EKRANI MODALI -->
+  <div id="loginModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-[2px] flex items-center justify-center p-4">
+    <div style="width: 100%; max-width: 360px;" class="bg-carbon-900 border border-carbon-700 rounded-lg overflow-hidden shadow-2xl">
+      <div class="border-b border-carbon-800 px-5 py-3.5 flex items-center gap-3 bg-carbon-950">
+        <div class="w-8 h-8 rounded-md bg-carbon-850 border border-carbon-700 flex items-center justify-center text-neutral-200 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xs font-mono font-semibold uppercase tracking-wider text-neutral-100">AtlasDoc Giriş</h2>
+          <p class="text-[10px] font-mono text-neutral-500 mt-0.5">Yetkili kullanıcı oturumu</p>
+        </div>
+      </div>
+
+      <form id="loginForm" class="p-5 space-y-3.5">
+        <div>
+          <label for="loginUsernameInput" class="block text-[10px] font-mono uppercase tracking-wider text-neutral-400 mb-1">Kullanıcı Adı</label>
+          <input
+            id="loginUsernameInput"
+            type="text"
+            required
+            autocomplete="username"
+            placeholder="Kullanıcı adı"
+            class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
+          />
+        </div>
+
+        <div>
+          <label for="loginPasswordInput" class="block text-[10px] font-mono uppercase tracking-wider text-neutral-400 mb-1">Şifre</label>
+          <input
+            id="loginPasswordInput"
+            type="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="w-full bg-carbon-950 border border-carbon-700 rounded px-3 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-neutral-400"
+          />
+        </div>
+
+        <div id="loginErrorBox" class="hidden rounded border border-red-800/80 bg-carbon-950 px-3 py-2 text-xs font-mono text-red-400"></div>
+
+        <div class="pt-1">
+          <button
+            id="loginSubmitBtn"
+            type="submit"
+            class="w-full px-4 py-2 rounded text-xs font-mono font-semibold bg-neutral-100 hover:bg-white text-carbon-950 transition cursor-pointer"
+          >
+            Giriş Yap
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     mermaid.initialize({
       startOnLoad: false,
@@ -585,6 +650,14 @@
         defaultModel: 'gemma3:12b',
         requiresKey: false,
         hint: 'Örn: gemma3:12b, qwen2.5vl:7b, llama3.2-vision'
+      },
+      deepseek: {
+        label: 'DeepSeek',
+        badge: 'Bulut API',
+        baseUrl: 'https://api.deepseek.com',
+        defaultModel: 'deepseek-flash',
+        requiresKey: true,
+        hint: 'Örn: deepseek-flash, DeepSeek-V4.1-Flash-1017'
       },
       gemini: {
         label: 'Google Gemini',
@@ -649,6 +722,14 @@
         apiKey: ''
       },
       {
+        id: 'default-deepseek',
+        name: 'DeepSeek Flash',
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com',
+        modelName: 'deepseek-flash',
+        apiKey: ''
+      },
+      {
         id: 'default-gemini',
         name: 'Google Gemini 2.5 Flash',
         provider: 'gemini',
@@ -672,9 +753,18 @@
     const openModelModalBtn = document.getElementById('openModelModalBtn');
     const dpiInput = document.getElementById('dpiInput');
     const healthCheckBtn = document.getElementById('healthCheckBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
     const healthDot = document.getElementById('healthDot');
     const healthBanner = document.getElementById('healthBanner');
     const healthMessage = document.getElementById('healthMessage');
+
+    // Giriş (Login) DOM Referansları
+    const loginModal = document.getElementById('loginModal');
+    const loginForm = document.getElementById('loginForm');
+    const loginUsernameInput = document.getElementById('loginUsernameInput');
+    const loginPasswordInput = document.getElementById('loginPasswordInput');
+    const loginErrorBox = document.getElementById('loginErrorBox');
+    const loginSubmitBtn = document.getElementById('loginSubmitBtn');
 
     // Modal DOM Referansları
     const modelModal = document.getElementById('modelModal');
@@ -770,7 +860,19 @@
 
       if (!profiles.length) {
         profiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+        try { localStorage.setItem('atlasdoc_deepseek_seeded_v1', '1'); } catch (_) {}
         saveProfilesToStorage();
+      } else {
+        try {
+          if (!localStorage.getItem('atlasdoc_deepseek_seeded_v1')) {
+            if (!profiles.some(p => p.provider === 'deepseek')) {
+              const dsDefault = DEFAULT_PROFILES.find(p => p.id === 'default-deepseek');
+              if (dsDefault) profiles.push(JSON.parse(JSON.stringify(dsDefault)));
+            }
+            localStorage.setItem('atlasdoc_deepseek_seeded_v1', '1');
+            saveProfilesToStorage();
+          }
+        } catch (_) {}
       }
 
       const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
@@ -1112,6 +1214,85 @@
     loadProfilesFromStorage();
     renderActiveModelDropdown();
 
+    // --- KİMLİK DOĞRULAMA (AUTH) AKIŞI ---
+    function showLoginModal(errorMsg = '') {
+      loginModal.classList.remove('hidden');
+      if (errorMsg) {
+        loginErrorBox.textContent = errorMsg;
+        loginErrorBox.classList.remove('hidden');
+      } else {
+        loginErrorBox.textContent = '';
+        loginErrorBox.classList.add('hidden');
+      }
+      setTimeout(() => loginUsernameInput.focus(), 50);
+    }
+
+    function hideLoginModal() {
+      loginModal.classList.add('hidden');
+      loginErrorBox.textContent = '';
+      loginErrorBox.classList.add('hidden');
+      loginPasswordInput.value = '';
+    }
+
+    async function checkAuthStatus() {
+      try {
+        const res = await fetch('/api/auth/status');
+        if (!res.ok) {
+          showLoginModal();
+          return;
+        }
+        const data = await res.json();
+        if (data.authenticated) {
+          hideLoginModal();
+        } else if (!data.configured) {
+          showLoginModal('Sunucuda giriş bilgileri tanımlı değil. Lütfen proje klasöründeki .env dosyasında ATLASDOC_AUTH_USER ve ATLASDOC_AUTH_PASS değişkenlerini tanımlayın.');
+        } else {
+          showLoginModal();
+        }
+      } catch (_) {
+        showLoginModal();
+      }
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = loginUsernameInput.value.trim();
+      const password = loginPasswordInput.value;
+      if (!username || !password) return;
+
+      loginSubmitBtn.disabled = true;
+      loginSubmitBtn.textContent = 'Doğrulanıyor...';
+      loginErrorBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showLoginModal(data.detail || 'Giriş başarısız.');
+          return;
+        }
+        hideLoginModal();
+      } catch (err) {
+        showLoginModal('Sunucu hatası: ' + err.message);
+      } finally {
+        loginSubmitBtn.disabled = false;
+        loginSubmitBtn.textContent = 'Giriş Yap';
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (_) {}
+      showLoginModal();
+    });
+
+    checkAuthStatus();
+
     // 1. Sayfa Seçim Modu (Tüm Sayfalar / Özel Aralık)
     function setPageMode(mode) {
       pageMode = mode;
@@ -1304,6 +1485,10 @@
             api_key: active.apiKey || ''
           })
         });
+        if (res.status === 401) {
+          showLoginModal('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+          return;
+        }
         const data = await res.json();
 
         healthBanner.classList.remove('hidden');
@@ -1348,6 +1533,12 @@
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/pdf-info', { method: 'POST', body: fd });
+        if (res.status === 401) {
+          selectedFile = null;
+          pdfFileInput.value = '';
+          showLoginModal('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+          return;
+        }
         if (res.ok) {
           const info = await res.json();
           pdfTotalPages = info.total_pages || 0;
@@ -1450,6 +1641,11 @@
           body: formData,
           signal: abortController.signal
         });
+
+        if (response.status === 401) {
+          showLoginModal('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+          throw new Error('Oturum açmanız gerekiyor.');
+        }
 
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));

@@ -445,6 +445,12 @@ PROVIDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "requires_key": True,
         "default_key": "",
     },
+    "deepseek": {
+        "label": "DeepSeek",
+        "base_url": "https://api.deepseek.com",
+        "requires_key": True,
+        "default_key": "",
+    },
     "openai": {
         "label": "OpenAI",
         "base_url": "https://api.openai.com/v1",

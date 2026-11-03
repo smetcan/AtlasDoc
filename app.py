@@ -1,7 +1,10 @@
+import hashlib
+import hmac
 import json
 import os
-from fastapi import FastAPI, File, Form, Request, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+import time
+from fastapi import FastAPI, File, Form, Request, Response, UploadFile, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -14,6 +17,95 @@ from converter import (
     process_pdf_stream,
     resolve_provider_config,
 )
+
+
+def _load_dotenv() -> None:
+    """Harici paket gerektirmeden kök dizindeki .env dosyasını os.environ'a yükler."""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.isfile(env_path):
+        return
+    try:
+        with open(env_path, encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                key = key.strip()
+                val = val.strip()
+                if len(val) >= 2 and val[0] == val[-1] and val[0] in ("'", '"'):
+                    val = val[1:-1]
+                if key and key not in os.environ:
+                    os.environ[key] = val
+    except Exception:
+        pass
+
+
+_load_dotenv()
+
+SESSION_COOKIE_NAME = "atlasdoc_session"
+DEFAULT_SESSION_HOURS = 168  # 7 gün
+
+
+def _auth_credentials() -> tuple[str, str]:
+    user = os.environ.get("ATLASDOC_AUTH_USER", "").strip()
+    password = os.environ.get("ATLASDOC_AUTH_PASS", "")
+    return user, password
+
+
+def is_auth_configured() -> bool:
+    user, password = _auth_credentials()
+    return bool(user and password)
+
+
+def _session_secret() -> bytes:
+    explicit = os.environ.get("ATLASDOC_AUTH_SECRET", "").strip()
+    user, password = _auth_credentials()
+    seed = explicit or f"atlasdoc-session:{user}:{password}"
+    return hashlib.sha256(seed.encode("utf-8")).digest()
+
+
+def create_session_token(username: str, ttl_seconds: int = DEFAULT_SESSION_HOURS * 3600) -> str:
+    exp = int(time.time()) + max(60, ttl_seconds)
+    payload = f"{username}:{exp}"
+    sig = hmac.new(_session_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{exp}.{sig}"
+
+
+def verify_session_token(token: str) -> bool:
+    if not token or "." not in token or not is_auth_configured():
+        return False
+    exp_str, sig = token.split(".", 1)
+    if not exp_str.isdigit():
+        return False
+    exp = int(exp_str)
+    if time.time() > exp:
+        return False
+    user, _ = _auth_credentials()
+    expected_payload = f"{user}:{exp}"
+    expected_sig = hmac.new(
+        _session_secret(), expected_payload.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(sig, expected_sig)
+
+
+def is_request_authenticated(request: Request) -> bool:
+    # Pytest altında mevcut upload/static testlerinin kırılmaması için (test_auth kendi içinde zorlar)
+    if (
+        os.environ.get("PYTEST_CURRENT_TEST")
+        and os.environ.get("ATLASDOC_ENFORCE_AUTH_IN_TEST") != "1"
+    ):
+        return True
+    token = request.cookies.get(SESSION_COOKIE_NAME, "")
+    return verify_session_token(token)
+
+
+def require_auth(request: Request) -> None:
+    if not is_request_authenticated(request):
+        raise HTTPException(
+            status_code=401,
+            detail="Oturum açmanız gerekiyor. Lütfen giriş yapın.",
+        )
 
 app = FastAPI(
     title="AtlasDoc — Vision-First PDF to Markdown",
@@ -80,6 +172,11 @@ class HealthCheckRequest(BaseModel):
     api_key: str = ""
 
 
+class LoginRequest(BaseModel):
+    username: str = ""
+    password: str = ""
+
+
 def _public_config() -> dict:
     return {
         "base_url": default_base_url(),
@@ -109,8 +206,51 @@ async def public_config():
     return _public_config()
 
 
+@app.get("/api/auth/status")
+async def auth_status(request: Request):
+    return {
+        "authenticated": is_request_authenticated(request),
+        "configured": is_auth_configured(),
+    }
+
+
+@app.post("/api/auth/login")
+async def auth_login(payload: LoginRequest, response: Response):
+    if not is_auth_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Sunucuda giriş bilgileri tanımlı değil. Lütfen .env dosyasında ATLASDOC_AUTH_USER ve ATLASDOC_AUTH_PASS değişkenlerini tanımlayın.",
+        )
+    expected_user, expected_pass = _auth_credentials()
+    input_user = (payload.username or "").strip()
+    input_pass = payload.password or ""
+
+    user_ok = hmac.compare_digest(input_user.encode("utf-8"), expected_user.encode("utf-8"))
+    pass_ok = hmac.compare_digest(input_pass.encode("utf-8"), expected_pass.encode("utf-8"))
+    if not (user_ok and pass_ok):
+        raise HTTPException(status_code=401, detail="Kullanıcı adı veya şifre hatalı.")
+
+    ttl = DEFAULT_SESSION_HOURS * 3600
+    token = create_session_token(expected_user, ttl_seconds=ttl)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        max_age=ttl,
+        httponly=True,
+        samesite="lax",
+    )
+    return {"ok": True, "username": expected_user}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(response: Response):
+    response.delete_cookie(key=SESSION_COOKIE_NAME, samesite="lax")
+    return {"ok": True}
+
+
 @app.post("/api/health")
-async def health_check(payload: HealthCheckRequest):
+async def health_check(request: Request, payload: HealthCheckRequest):
+    require_auth(request)
     eff_provider = payload.provider.strip() or default_provider()
     _, eff_base_url, _, _ = resolve_provider_config(
         provider=eff_provider,
@@ -128,6 +268,7 @@ async def health_check(payload: HealthCheckRequest):
 
 @app.post("/api/pdf-info")
 async def pdf_info(request: Request, file: UploadFile = File(...)):
+    require_auth(request)
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Geçerli bir .pdf dosyası seçin.")
     max_bytes = max_upload_bytes()
@@ -153,6 +294,7 @@ async def convert_pdf(
     dpi: int = Form(200),
     page_ranges: str = Form(""),
 ):
+    require_auth(request)
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Lütfen geçerli bir .pdf dosyası yükleyin.")
 

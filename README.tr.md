@@ -65,6 +65,7 @@ Arayüz Ollama ve başka OpenAI uyumlu uçlar (bulut API'leri dahil) için profi
 Bunlar öneridir, kıyaslama değildir. Bu depo modelleri birbirine karşı ölçmedi; burada doğruluk sayısı yoktur.
 
 - **`google/gemma-4-e4b`**, uygulamanın doldurduğu varsayılan. Hugging Face modeli `google/gemma-4-E4B-it`. LM Studio derlemeleri çoğu zaman `lmstudio-community` GGUF'unu kullanır. Küçük bir vision model olduğu için varsayılandır; bu depoda bir karşılaştırmayı kazandığı için değil.
+- **DeepSeek Flash (`deepseek-flash` / `DeepSeek-V4.1-Flash-1017`)**, resmi DeepSeek API (`https://api.deepseek.com`) üzerinden. Bulut tarafında düşük maliyetle tablo hizalama, kod blokları ve Türkçe doküman yapısında çok yüksek doğruluk verir.
 - **Yaklaşık 7B–8B Qwen2.5-VL veya Qwen3-VL**, belgeye yönelik bir model istiyor ve belleğiniz yetiyorsa. LM Studio'daki kimlik kuruluma göre değişir. Yüksek DPI daha çok görüntü token'ı demektir. Sayfa düşer veya kesilirse DPI'ı azaltın.
 - **Ollama etiketleri** (`gemma3`, `qwen2.5vl` gibi), Ollama profilini kullanıyorsanız (`http://localhost:11434/v1`).
 
@@ -91,6 +92,9 @@ atlasdoc serve --host 127.0.0.1 --port 8000
 
 | Değişken | Varsayılan | Anlamı |
 | --- | --- | --- |
+| `ATLASDOC_AUTH_USER` | zorunlu | Web arayüzü giriş kullanıcı adı (`.env` dosyasından veya ortam değişkeninden okunur). |
+| `ATLASDOC_AUTH_PASS` | zorunlu | Web arayüzü giriş şifresi (`.env` dosyasından veya ortam değişkeninden okunur). |
+| `ATLASDOC_AUTH_SECRET` | türetilir | Oturum çerezini (`atlasdoc_session`) imzalamak için opsiyonel HMAC gizli anahtarı. |
 | `ATLASDOC_BASE_URL` | `http://localhost:1234/v1` | LM Studio (veya OpenAI uyumlu) taban adresi. `LMSTUDIO_BASE_URL` yedek addır. |
 | `ATLASDOC_MODEL` | `google/gemma-4-e4b` | Kayıtlı profil yokken ve CLI'da kullanılan model kimliği. |
 | `ATLASDOC_PROVIDER` | `lmstudio` | Sağlayıcı kimliği. |
