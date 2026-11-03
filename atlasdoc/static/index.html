@@ -492,7 +492,7 @@
                   Göster
                 </button>
               </div>
-              <p class="text-[10px] font-mono text-neutral-500 mt-1">Anahtar yalnızca bu tarayıcıda (localStorage) saklanır.</p>
+              <p class="text-[10px] font-mono text-neutral-500 mt-1">.env dosyasında tanımlıysa boş bırakabilirsiniz; buraya yazarsanız yalnızca bu tarayıcıda (localStorage) saklanır.</p>
             </div>
 
             <!-- Model ID + Sunucudan Modelleri Çek -->
@@ -834,6 +834,7 @@
     let profiles = [];
     let activeProfileId = '';
     let editingProfileId = null;
+    let serverEnvKeyProviders = [];
 
     let selectedFile = null;
     let pdfTotalPages = 0;
@@ -968,12 +969,20 @@
       const preset = PROVIDER_PRESETS[providerKey] || PROVIDER_PRESETS.custom;
       profileFormBadge.textContent = preset.badge;
       providerModelHint.textContent = preset.hint;
-      apiKeyRequirementHint.textContent = preset.requiresKey
-        ? 'Zorunlu (Bulut API)'
-        : 'Opsiyonel (Yerel Sunucu)';
-      apiKeyRequirementHint.className = preset.requiresKey
-        ? 'text-[10px] font-mono text-amber-400'
-        : 'text-[10px] font-mono text-neutral-500';
+      const hasEnvKey = Array.isArray(serverEnvKeyProviders) && serverEnvKeyProviders.includes(providerKey);
+      if (hasEnvKey) {
+        apiKeyRequirementHint.textContent = '✓ .env üzerinde tanımlı (Boş bırakabilirsiniz)';
+        apiKeyRequirementHint.className = 'text-[10px] font-mono text-emerald-400';
+        profileApiKeyInput.placeholder = '.env içindeki anahtar kullanılıyor (ezmek için yazın)';
+      } else {
+        apiKeyRequirementHint.textContent = preset.requiresKey
+          ? 'Zorunlu (.env veya buradan girin)'
+          : 'Opsiyonel (Yerel Sunucu)';
+        apiKeyRequirementHint.className = preset.requiresKey
+          ? 'text-[10px] font-mono text-amber-400'
+          : 'text-[10px] font-mono text-neutral-500';
+        profileApiKeyInput.placeholder = 'sk-... / AIza... (.env içinde tanımlıysa boş bırakın)';
+      }
 
       if (overwriteUrlAndModel) {
         profileBaseUrlInput.value = preset.baseUrl;
@@ -1242,6 +1251,9 @@
           return;
         }
         const data = await res.json();
+        if (Array.isArray(data.env_key_providers)) {
+          serverEnvKeyProviders = data.env_key_providers;
+        }
         if (data.authenticated) {
           hideLoginModal();
         } else if (!data.configured) {
@@ -1274,6 +1286,9 @@
         if (!res.ok) {
           showLoginModal(data.detail || 'Giriş başarısız.');
           return;
+        }
+        if (Array.isArray(data.env_key_providers)) {
+          serverEnvKeyProviders = data.env_key_providers;
         }
         hideLoginModal();
       } catch (err) {

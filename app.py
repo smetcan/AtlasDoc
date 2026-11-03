@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from converter import (
     check_lm_studio_health,
+    configured_env_key_providers,
     default_base_url,
     default_model_name,
     default_provider,
@@ -208,10 +209,14 @@ async def public_config():
 
 @app.get("/api/auth/status")
 async def auth_status(request: Request):
-    return {
-        "authenticated": is_request_authenticated(request),
+    authed = is_request_authenticated(request)
+    res = {
+        "authenticated": authed,
         "configured": is_auth_configured(),
     }
+    if authed:
+        res["env_key_providers"] = configured_env_key_providers()
+    return res
 
 
 @app.post("/api/auth/login")
@@ -239,7 +244,11 @@ async def auth_login(payload: LoginRequest, response: Response):
         httponly=True,
         samesite="lax",
     )
-    return {"ok": True, "username": expected_user}
+    return {
+        "ok": True,
+        "username": expected_user,
+        "env_key_providers": configured_env_key_providers(),
+    }
 
 
 @app.post("/api/auth/logout")

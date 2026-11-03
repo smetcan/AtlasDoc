@@ -95,6 +95,11 @@ atlasdoc serve --host 127.0.0.1 --port 8000
 | `ATLASDOC_AUTH_USER` | required | Static login username for the web UI (loaded from `.env` or environment). |
 | `ATLASDOC_AUTH_PASS` | required | Static login password for the web UI (loaded from `.env` or environment). |
 | `ATLASDOC_AUTH_SECRET` | derived | Optional HMAC secret for signing session cookies (`atlasdoc_session`). |
+| `DEEPSEEK_API_KEY` | empty | Default API key for the `deepseek` provider when left blank in the UI/CLI. |
+| `GEMINI_API_KEY` | empty | Default API key for the `gemini` provider (`GOOGLE_API_KEY` also accepted). |
+| `OPENAI_API_KEY` | empty | Default API key for the `openai` provider. |
+| `ANTHROPIC_API_KEY` | empty | Default API key for the `anthropic` provider. |
+| `OPENROUTER_API_KEY` | empty | Default API key for the `openrouter` provider. |
 | `ATLASDOC_BASE_URL` | `http://localhost:1234/v1` | LM Studio (or other OpenAI-compatible) base URL. `LMSTUDIO_BASE_URL` is a fallback name. |
 | `ATLASDOC_MODEL` | `google/gemma-4-e4b` | Model id used when the UI has no saved profile, and by the CLI. |
 | `ATLASDOC_PROVIDER` | `lmstudio` | Provider id (`lmstudio`, `ollama`, or another id the UI knows). |

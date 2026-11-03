@@ -321,7 +321,9 @@ class TestProcessPdfStream:
         assert client.init_kwargs["max_retries"] == DEFAULT_MAX_RETRIES
         assert client.chat.completions.calls[0]["max_tokens"] == DEFAULT_MAX_TOKENS
 
-    def test_cloud_provider_requires_api_key(self):
+    def test_cloud_provider_requires_api_key(self, monkeypatch):
+        for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ATLASDOC_GEMINI_API_KEY", "ATLASDOC_API_KEY"):
+            monkeypatch.delenv(k, raising=False)
         events, client = _collect(
             _pdf_bytes(1),
             [],
@@ -354,7 +356,23 @@ class TestProcessPdfStream:
         assert d_key == "sk-deepseek"
         assert d_req is True
 
-    def test_health_check_rejects_missing_cloud_key(self):
+    def test_provider_resolves_api_key_from_env(self, monkeypatch):
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-env-deepseek-123")
+        monkeypatch.setenv("GEMINI_API_KEY", "AIza-env-gemini-456")
+
+        _, _, ds_key, _ = resolve_provider_config("deepseek", "", "")
+        assert ds_key == "sk-env-deepseek-123"
+
+        _, _, gm_key, _ = resolve_provider_config("gemini", "", "")
+        assert gm_key == "AIza-env-gemini-456"
+
+        # Arayüzden açıkça girilen anahtar .env değerini ezer
+        _, _, override_key, _ = resolve_provider_config("deepseek", "", "sk-explicit-ui")
+        assert override_key == "sk-explicit-ui"
+
+    def test_health_check_rejects_missing_cloud_key(self, monkeypatch):
+        for k in ("OPENAI_API_KEY", "ATLASDOC_OPENAI_API_KEY", "ATLASDOC_API_KEY"):
+            monkeypatch.delenv(k, raising=False)
         res = asyncio.run(
             check_provider_health(
                 base_url="",

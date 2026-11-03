@@ -18,6 +18,31 @@ DEFAULT_MODEL_NAME = "google/gemma-4-e4b"
 DEFAULT_PROVIDER = "lmstudio"
 
 
+def load_dotenv_file() -> None:
+    """Harici paket gerektirmeden kök dizindeki .env dosyasını os.environ'a yükler."""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.isfile(env_path):
+        return
+    try:
+        with open(env_path, encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                key = key.strip()
+                val = val.strip()
+                if len(val) >= 2 and val[0] == val[-1] and val[0] in ("'", '"'):
+                    val = val[1:-1]
+                if key and key not in os.environ:
+                    os.environ[key] = val
+    except Exception:
+        pass
+
+
+load_dotenv_file()
+
+
 def default_base_url() -> str:
     """LM Studio (veya uyumlu) adresi. ATLASDOC_BASE_URL, yoksa LMSTUDIO_BASE_URL."""
     return (
@@ -432,50 +457,81 @@ PROVIDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "base_url": "http://localhost:1234/v1",
         "requires_key": False,
         "default_key": "lm-studio",
+        "env_keys": ("LMSTUDIO_API_KEY",),
     },
     "ollama": {
         "label": "Ollama",
         "base_url": "http://localhost:11434/v1",
         "requires_key": False,
         "default_key": "ollama",
+        "env_keys": ("OLLAMA_API_KEY",),
     },
     "gemini": {
         "label": "Google Gemini",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
         "requires_key": True,
         "default_key": "",
+        "env_keys": ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ATLASDOC_GEMINI_API_KEY"),
     },
     "deepseek": {
         "label": "DeepSeek",
         "base_url": "https://api.deepseek.com",
         "requires_key": True,
         "default_key": "",
+        "env_keys": ("DEEPSEEK_API_KEY", "ATLASDOC_DEEPSEEK_API_KEY"),
     },
     "openai": {
         "label": "OpenAI",
         "base_url": "https://api.openai.com/v1",
         "requires_key": True,
         "default_key": "",
+        "env_keys": ("OPENAI_API_KEY", "ATLASDOC_OPENAI_API_KEY"),
     },
     "anthropic": {
         "label": "Anthropic",
         "base_url": "https://api.anthropic.com/v1",
         "requires_key": True,
         "default_key": "",
+        "env_keys": ("ANTHROPIC_API_KEY", "ATLASDOC_ANTHROPIC_API_KEY"),
     },
     "openrouter": {
         "label": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1",
         "requires_key": True,
         "default_key": "",
+        "env_keys": ("OPENROUTER_API_KEY", "ATLASDOC_OPENROUTER_API_KEY"),
     },
     "custom": {
         "label": "Özel (OpenAI Uyumlu)",
         "base_url": "http://localhost:1234/v1",
         "requires_key": False,
         "default_key": "custom-key",
+        "env_keys": ("ATLASDOC_API_KEY",),
     },
 }
+
+
+def provider_env_api_key(provider: str) -> str:
+    """Seçilen sağlayıcı için .env / ortam değişkeninde tanımlı API anahtarını döndürür."""
+    norm_provider = (provider or "lmstudio").strip().lower()
+    cfg = PROVIDER_DEFAULTS.get(norm_provider, PROVIDER_DEFAULTS["custom"])
+    for env_name in cfg.get("env_keys", ()):
+        val = os.environ.get(env_name, "").strip()
+        if val:
+            return val
+    fallback = os.environ.get("ATLASDOC_API_KEY", "").strip()
+    if fallback:
+        return fallback
+    return ""
+
+
+def configured_env_key_providers() -> List[str]:
+    """Ortam değişkeninde (.env) API anahtarı tanımlanmış sağlayıcıların listesini döndürür."""
+    result: List[str] = []
+    for prov_id in PROVIDER_DEFAULTS:
+        if provider_env_api_key(prov_id):
+            result.append(prov_id)
+    return result
 
 
 def resolve_provider_config(
@@ -508,7 +564,7 @@ def resolve_provider_config(
     if norm_provider == "ollama" and not effective_url.rstrip("/").endswith("/v1"):
         effective_url = effective_url.rstrip("/") + "/v1"
 
-    clean_key = (api_key or "").strip()
+    clean_key = (api_key or "").strip() or provider_env_api_key(norm_provider)
     effective_key = clean_key if clean_key else cfg["default_key"]
 
     return label, effective_url.rstrip("/"), effective_key, requires_key

@@ -95,6 +95,11 @@ atlasdoc serve --host 127.0.0.1 --port 8000
 | `ATLASDOC_AUTH_USER` | zorunlu | Web arayüzü giriş kullanıcı adı (`.env` dosyasından veya ortam değişkeninden okunur). |
 | `ATLASDOC_AUTH_PASS` | zorunlu | Web arayüzü giriş şifresi (`.env` dosyasından veya ortam değişkeninden okunur). |
 | `ATLASDOC_AUTH_SECRET` | türetilir | Oturum çerezini (`atlasdoc_session`) imzalamak için opsiyonel HMAC gizli anahtarı. |
+| `DEEPSEEK_API_KEY` | boş | Arayüzde/CLI'da boş bırakıldığında `deepseek` sağlayıcısı için kullanılan API anahtarı. |
+| `GEMINI_API_KEY` | boş | `gemini` sağlayıcısı için API anahtarı (`GOOGLE_API_KEY` de kabul edilir). |
+| `OPENAI_API_KEY` | boş | `openai` sağlayıcısı için API anahtarı. |
+| `ANTHROPIC_API_KEY` | boş | `anthropic` sağlayıcısı için API anahtarı. |
+| `OPENROUTER_API_KEY` | boş | `openrouter` sağlayıcısı için API anahtarı. |
 | `ATLASDOC_BASE_URL` | `http://localhost:1234/v1` | LM Studio (veya OpenAI uyumlu) taban adresi. `LMSTUDIO_BASE_URL` yedek addır. |
 | `ATLASDOC_MODEL` | `google/gemma-4-e4b` | Kayıtlı profil yokken ve CLI'da kullanılan model kimliği. |
 | `ATLASDOC_PROVIDER` | `lmstudio` | Sağlayıcı kimliği. |
