@@ -243,6 +243,7 @@ async def auth_login(payload: LoginRequest, response: Response):
         max_age=ttl,
         httponly=True,
         samesite="lax",
+        secure=os.environ.get("ATLASDOC_COOKIE_SECURE", "").strip().lower() in ("1", "true", "yes"),
     )
     return {
         "ok": True,

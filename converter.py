@@ -589,7 +589,7 @@ async def check_provider_health(
         provider=provider, base_url=base_url, api_key=api_key
     )
 
-    if requires_key and not (api_key or "").strip():
+    if requires_key and not effective_key:
         return {
             "ok": False,
             "available_models": [],
@@ -693,7 +693,7 @@ async def process_pdf_stream(
         provider=provider, base_url=base_url, api_key=api_key
     )
 
-    if requires_key and not (api_key or "").strip():
+    if requires_key and not effective_key:
         yield {
             "type": "error",
             "message": f"{label} kullanımı için API anahtarı (API Key) gereklidir. Lütfen model ayarlarından anahtarınızı girin.",
